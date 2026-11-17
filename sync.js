@@ -391,9 +391,9 @@
     },
     async signOut() { await Y.client.auth.signOut({ scope: 'local' }); await setUser(null); },
     // 呼叫 Edge Function；所有錯誤都整理成 { ok:false, code, message }
-    async invoke(name, body, ms = 40000) {
+    async invoke(name, body, ms = 65000) {
       if (!Y.client || !Y.user) return { ok: false, code: 'AI_SERVICE_ERROR', message: '請先登入雲端同步' };
-      const timeout = new Promise(r => setTimeout(() => r({ ok: false, code: 'AI_TIMEOUT', message: 'AI 回應逾時' }), ms));
+      const timeout = new Promise(r => setTimeout(() => r({ ok: false, code: 'AI_TIMEOUT', message: `超過 ${Math.round(ms / 1000)} 秒沒有收到回應（可能是網路不穩或雲端剛啟動）`, reason: 'client_timeout' }), ms));
       const call = (async () => {
         try {
           const { data, error } = await Y.client.functions.invoke(name, { body });
