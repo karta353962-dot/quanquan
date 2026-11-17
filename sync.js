@@ -390,24 +390,34 @@
       if (error) throw error;
     },
     async signOut() { await Y.client.auth.signOut({ scope: 'local' }); await setUser(null); },
-    // 呼叫 Edge Function；所有錯誤都整理成 { ok:false, code, message }
+    // 呼叫 Edge Function：直接用 fetch，每一步都有自己的逾時與清楚的錯誤訊息
     async invoke(name, body, ms = 65000) {
       if (!Y.client || !Y.user) return { ok: false, code: 'AI_SERVICE_ERROR', message: '請先登入雲端同步' };
-      const timeout = new Promise(r => setTimeout(() => r({ ok: false, code: 'AI_TIMEOUT', message: `超過 ${Math.round(ms / 1000)} 秒沒有收到回應（可能是網路不穩或雲端剛啟動）`, reason: 'client_timeout' }), ms));
-      const call = (async () => {
-        try {
-          const { data, error } = await Y.client.functions.invoke(name, { body });
-          if (!error) return data;
-          let payload = null;
-          try { payload = error.context && await error.context.json(); } catch {}
-          if (payload && payload.code) return payload;
-          const status = error.context && error.context.status;
-          if (status === 404) return { ok: false, code: 'AI_SERVICE_ERROR', message: 'AI 辨識功能還沒部署（Edge Function：recognize）', reason: 'not_deployed' };
-          if (status === 401) return { ok: false, code: 'AI_SERVICE_ERROR', message: '登入已過期，請重新登入', reason: 'unauthorized' };
-          return { ok: false, code: 'AI_SERVICE_ERROR', message: navigator.onLine === false ? '目前離線' : 'AI 服務連線失敗' };
-        } catch (e) { return { ok: false, code: 'AI_SERVICE_ERROR', message: 'AI 服務連線失敗' }; }
-      })();
-      return Promise.race([call, timeout]);
+      const t0 = Date.now();
+      const sec = () => Math.round((Date.now() - t0) / 1000);
+      const sess = await Promise.race([Y.client.auth.getSession(), new Promise(r => setTimeout(() => r('timeout'), 8000))]);
+      if (sess === 'timeout') return { ok: false, code: 'AI_SERVICE_ERROR', message: '讀取登入狀態逾時，請把 App 關掉重開再試', reason: 'session_timeout' };
+      const token = sess && sess.data && sess.data.session && sess.data.session.access_token;
+      if (!token) return { ok: false, code: 'AI_SERVICE_ERROR', message: '登入已過期，請重新登入', reason: 'unauthorized' };
+      const ctrl = new AbortController();
+      const timer = setTimeout(() => ctrl.abort(), ms);
+      try {
+        const res = await fetch(`${CFG.supabaseUrl.replace(/\/$/, '')}/functions/v1/${name}`, {
+          method: 'POST', signal: ctrl.signal,
+          headers: { 'Content-Type': 'application/json', apikey: CFG.supabaseKey, Authorization: 'Bearer ' + token },
+          body: JSON.stringify(body),
+        });
+        const text = await res.text();
+        let data = null;
+        try { data = JSON.parse(text); } catch {}
+        if (data && typeof data.ok === 'boolean') return data;   // 包含測試連線（ping）的回覆
+        if (res.status === 404) return { ok: false, code: 'AI_SERVICE_ERROR', message: 'AI 辨識功能還沒部署（Edge Function：recognize）', reason: 'not_deployed' };
+        if (res.status === 401) return { ok: false, code: 'AI_SERVICE_ERROR', message: '登入已過期或 Verify JWT 未關閉', reason: 'unauthorized' };
+        return { ok: false, code: (res.status === 503 || res.status === 504) ? 'AI_TIMEOUT' : 'AI_SERVICE_ERROR', message: `雲端回應錯誤（HTTP ${res.status}，${sec()} 秒）`, reason: 'http_' + res.status };
+      } catch (e) {
+        if (e && e.name === 'AbortError') return { ok: false, code: 'AI_TIMEOUT', message: `超過 ${sec()} 秒沒有收到回應`, reason: 'client_timeout' };
+        return { ok: false, code: 'AI_SERVICE_ERROR', message: `無法連線到 AI 服務（${(e && (e.name + ': ' + e.message)) || e}，${sec()} 秒）`, reason: 'network' };
+      } finally { clearTimeout(timer); }
     },
     resolveConflict, clearLocalForNewAccount,
     conflicts: () => all('conflicts'),

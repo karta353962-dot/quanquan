@@ -1032,7 +1032,7 @@ document.addEventListener('keydown', e => { if (e.key === 'Escape') closeViewer(
 /* =========================================================
    雲端同步：狀態、帳號、衝突
    ========================================================= */
-const APP_VERSION = '階段三 v3.2';
+const APP_VERSION = '階段三 v3.3';
 function loginCard() {
   if (DB.mode === 'memory' || !window.Sync) return '';
   const st = Sync.status.state;
@@ -1103,7 +1103,11 @@ function renderAccount() {
     </section>`;
   } else {
     body = `<section class="card panel"><div class="actions"><button class="btn take" id="btnSync">立即同步</button><button class="btn plain" id="btnOut">登出</button></div>
-      <p class="hint">登出後，這台裝置上的票券仍然保留，可以離線查看。</p></section>`;
+      <p class="hint">登出後，這台裝置上的票券仍然保留，可以離線查看。</p></section>
+      <section class="card panel"><h3>AI 辨識</h3>
+        <button class="btn mizu block" id="btnPing">測試 AI 連線</button>
+        <div id="pingOut" class="hint" style="white-space:pre-line;margin-top:10px"></div>
+        <button class="btn plain small hidden" id="btnUnblock" style="margin-top:8px">解除 AI 暫停</button></section>`;
   }
   app.innerHTML = `<div class="bar"><button class="iconbtn" id="back" aria-label="返回">‹</button><h2>雲端同步</h2></div>
     <section class="card panel" id="acctStatus">${acctStatusHTML()}</section>${body}
@@ -1130,6 +1134,28 @@ function renderAccount() {
     catch (err) { toast(authErr(err)); b.disabled = false; b.textContent = '登入'; }
   };
   const g = $('#btnGoogle'); if (g) g.onclick = () => Sync.signInGoogle().catch(err => toast(authErr(err)));
+  const bp = $('#btnPing');
+  if (bp) {
+    const ub = $('#btnUnblock');
+    get('meta', 'ai_block').then(b => { if (b && ub) { ub.classList.remove('hidden'); $('#pingOut').textContent = 'AI 目前暫停：' + (b.message || ''); } }).catch(() => {});
+    if (ub) ub.onclick = async () => { await write([{ store: 'meta', del: 'ai_block' }], { fromSync: true }); ub.classList.add('hidden'); toast('已解除 AI 暫停'); };
+    bp.onclick = async () => {
+      const out = $('#pingOut'); bp.disabled = true;
+      const t0 = Date.now();
+      const tick = setInterval(() => { out.textContent = `測試中…已等待 ${Math.round((Date.now() - t0) / 1000)} 秒`; }, 500);
+      const r = await Sync.invoke('recognize', { ping: true }, 65000);
+      clearInterval(tick); bp.disabled = false;
+      const total = ((Date.now() - t0) / 1000).toFixed(1);
+      if (r && r.ping) {
+        out.textContent = (r.ok ? '✅ AI 連線正常' : '❌ Gemini 回應錯誤') +
+          `\n模型：${r.model}\n總共：${total} 秒（Gemini ${(r.gemini_ms / 1000).toFixed(1)} 秒）` +
+          (r.gemini_status ? `\nGemini 狀態碼：${r.gemini_status}` : '') + (r.gemini_error ? `\n錯誤：${r.gemini_error}` : '') + (r.sample ? `\n回覆：${r.sample}` : '');
+      } else {
+        out.textContent = `❌ ${(r && r.message) || '沒有回應'}\n總共：${total} 秒` + (r && r.reason ? `\n代碼：${r.code}／${r.reason}` : (r && r.code ? `\n代碼：${r.code}` : '')) +
+          (r && r.detail ? `\n詳細：${r.detail}` : '');
+      }
+    };
+  }
   const bs = $('#btnSync'); if (bs) bs.onclick = () => { Sync.syncNow(); toast('開始同步'); };
   const bo = $('#btnOut'); if (bo) bo.onclick = async () => {
     if (Sync.status.pending && !(await ask(`還有 ${Sync.status.pending} 筆修改沒上傳。\n登出後會保留在這台裝置，下次登入同一個帳號時再上傳。`, '仍要登出'))) return;

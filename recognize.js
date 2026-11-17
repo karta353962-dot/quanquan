@@ -162,7 +162,7 @@
   }
   let busyEl = null;
   function busy(text, pct) {
-    if (!busyEl) busyEl = sheet(`<div class="busy">${mascotSVG('busy-mascot')}<p id="busyText"></p><div class="bar"><i id="busyBar"></i></div></div>`);
+    if (!busyEl) busyEl = sheet(`<div class="busy">${mascotSVG('busy-mascot')}<p id="busyText"></p><div class="pbar"><i id="busyBar"></i></div></div>`);
     busyEl.querySelector('#busyText').textContent = text;
     const bar = busyEl.querySelector('#busyBar');
     bar.parentElement.classList.toggle('hidden', pct == null);
@@ -207,7 +207,7 @@
     return new Promise(async res => {
       let img;
       try { img = await loadImg(blob); } catch { toast('圖片無法開啟'); return res(null); }
-      const scale = Math.min(1, 1600 / Math.max(img.naturalWidth, img.naturalHeight));
+      const scale = Math.min(1, 1400 / Math.max(img.naturalWidth, img.naturalHeight));
       const W = Math.round(img.naturalWidth * scale), H = Math.round(img.naturalHeight * scale);
       const m = sheet(`<h3 style="margin:0 0 4px">遮住不需要給 AI 看的地方</h3>
         <p class="hint" style="margin:0 0 10px">用手指在 QR Code、條碼、兌換碼上拉出方框（可以拉很多個），送出的圖片會把方框塗黑。</p>
@@ -297,10 +297,13 @@
     }
     const masked = await maskEditor(blob);
     if (!masked) return;
+    const t0 = Date.now();
     busy('AI 辨識中…');
+    const tick = setInterval(() => busy(`AI 辨識中…已等待 ${Math.round((Date.now() - t0) / 1000)} 秒`), 1000);
     let r;
     try { r = await Sync.invoke('recognize', { image: masked.image, mime: masked.mime }); }
-    finally { unbusy(); }
+    finally { clearInterval(tick); unbusy(); }
+    console.info('[AI] 圖片大小', Math.round(masked.image.length * 0.75 / 1024), 'KB，耗時', Date.now() - t0, 'ms', r && r.code);
     if (r && r.ok) {
       const model = r.model || 'gemini';
       await saveCache(im.hash, 'ai:' + model, model, r.result);
@@ -310,7 +313,7 @@
     }
     r = r || { code: 'AI_SERVICE_ERROR' };
     await blockAI(r);
-    const msg = r.message || AI_MSG[r.code] || AI_MSG.AI_SERVICE_ERROR;
+    const msg = (r.message || AI_MSG[r.code] || AI_MSG.AI_SERVICE_ERROR) + (r.reason ? `（${r.reason}）` : '');
     if (r.code === 'AI_INVALID_IMAGE') {
       if (await ask(`${msg}。\n要改用本機 OCR 試試看嗎？也可以直接手動填寫。`, '改用本機 OCR')) return runOCR(im, blob);
       return focusManual();
