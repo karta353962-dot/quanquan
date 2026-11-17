@@ -8,4 +8,4 @@ window.QUANQUAN_CONFIG = {
     googleLogin: false
 };
 const SUPABASE_URL = 'https://axvdzbJrvibebenyvtxt.supabase.co';
-const SUPABASE_ANON_KEY = 'sb_publishable_k2Mn31A4_dyzuUH8rkalaQ_f5dv1d0-';
+const SUPABASE_ANON_KEY = 'sb_publishable_k2Mn31A4_dyzuUH8rkalaQ_f5dv1d0-'
