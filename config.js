@@ -4,8 +4,6 @@
 // 券券日記 · 雲端設定
 window.QUANQUAN_CONFIG = {
     supabaseUrl: 'https://axvdzbJrvibebenyvtxt.supabase.co',
-    supabaseKey: 'sb_publishable_k2Mn31A4_dyzuUH8rkalaQ_f5dv1d0-',
+    supabaseKey: 'sb_publishable_k2Mn3lA4_dyzuUH8rkalaQ_f5dv1dO-',
     googleLogin: false
 };
-const SUPABASE_URL = 'https://axvdzbJrvibebenyvtxt.supabase.co';
-const SUPABASE_ANON_KEY = 'sb_publishable_k2Mn31A4_dyzuUH8rkalaQ_f5dv1d0-'
