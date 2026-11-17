@@ -521,7 +521,7 @@ function renderHome(noAnim) {
       ? '這個環境不允許保存資料（例如在預覽框裡開啟），重新整理後資料會消失。請部署到正式網址後再開始記錄。'
       : (window.Sync && Sync.status.email
         ? '票券會先存在這台裝置，再自動同步到你的雲端帳號。沒有網路時一樣可以查看與新增，連線後會自動補上傳。'
-        : '目前資料只存在這台裝置的瀏覽器。<a href="#account">登入雲端同步</a>後，換手機也能找回票券。iPhone 請「加入主畫面」，降低資料被系統清除的機率。')}
+        : '目前資料只存在這台裝置的瀏覽器。iPhone 請「加入主畫面」，降低資料被系統清除的機率。')}
     <div id="usage" class="muted"></div>
     <div class="muted">版本：${APP_VERSION}</div>
   </div>`;
@@ -1014,7 +1014,7 @@ document.addEventListener('keydown', e => { if (e.key === 'Escape') closeViewer(
 /* =========================================================
    雲端同步：狀態、帳號、衝突
    ========================================================= */
-const APP_VERSION = '階段二 v2.2';
+const APP_VERSION = '階段二 v2.3';
 function loginCard() {
   if (DB.mode === 'memory' || !window.Sync) return '';
   const st = Sync.status.state;
@@ -1030,13 +1030,14 @@ function syncChip() {
   const map = {
     off: ['', '本機模式・尚未設定雲端'],
     loading: ['yellow', '連線中…'],
-    signedout: ['yellow', '本機模式・點我登入同步'],
+    signedout: ['', '本機模式'],
     syncing: ['yellow', '同步中…'],
     ok: ['', `已同步 ${hm}${pend}`],
     offline: ['yellow', `離線中${pend}`],
     error: ['warn', `同步異常${pend}`],
     paused: ['warn', '同步已暫停'],
   };
+  if (st.state === 'signedout' && !st.conflicts) return '';
   let [cls, txt] = map[st.state] || map.off;
   if (st.conflicts) { cls = 'warn'; txt = `有 ${st.conflicts} 筆衝突待處理`; }
   return `<a class="status ${cls}" id="syncChip" href="#account"><i></i>${esc(txt)}</a>`;
