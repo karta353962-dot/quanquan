@@ -135,6 +135,14 @@ button,input,select,textarea{font:inherit;color:inherit}
 .slide img{display:block;width:100%;height:300px;object-fit:contain;background:#fff}
 .slide .chip{position:absolute;left:8px;top:8px}
 .slide .star{position:absolute;left:auto;right:8px;top:8px}
+.nofile{height:300px;display:flex;align-items:center;justify-content:center;text-align:center;padding:20px;background:var(--paper);font-size:14px}
+.status{text-decoration:none}.status.yellow{background:var(--yellow)}
+.acct-state{display:flex;gap:10px;align-items:flex-start}
+.acct-state .dot{width:14px;height:14px;border-radius:50%;border:2px solid var(--ink);margin-top:5px;flex:none}
+.cfield{padding:10px;border:2px solid var(--ink);border-radius:16px;background:var(--white);margin-top:10px}
+.cfield .opt{display:flex;gap:8px;align-items:flex-start;padding:8px;border-radius:12px;cursor:pointer}
+.cfield .opt input{margin-top:5px;width:18px;height:18px;accent-color:#3E3A39}
+.cfield .opt:has(input:checked){background:var(--yellow)}
 .kv{display:grid;grid-template-columns:96px 1fr;gap:8px 10px;font-size:15px}
 .kv dt{font-weight:700;opacity:.8}
 .kv dd{margin:0;word-break:break-all}
@@ -183,6 +191,7 @@ button,input,select,textarea{font:inherit;color:inherit}
 </a>
 <div id="layer"></div>
 
+<script src="config.js"></script>
 <script>
 'use strict';
 /* =========================================================
@@ -208,7 +217,13 @@ const REMIND_PRESETS = [[0,'當天'],[1,'前 1 天'],[3,'前 3 天'],[7,'前 7 �
 /* ---------- 小工具 ---------- */
 const $ = (s, r = document) => r.querySelector(s);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const uuid = () => (crypto.randomUUID ? crypto.randomUUID() : 'id' + Date.now().toString(36) + Math.random().toString(36).slice(2, 10));
+const uuid = () => {
+  if (crypto.randomUUID) return crypto.randomUUID();
+  const b = crypto.getRandomValues(new Uint8Array(16));
+  b[6] = (b[6] & 0x0f) | 0x40; b[8] = (b[8] & 0x3f) | 0x80;
+  const h = [...b].map(x => x.toString(16).padStart(2, '0')).join('');
+  return `${h.slice(0, 8)}-${h.slice(8, 12)}-${h.slice(12, 16)}-${h.slice(16, 20)}-${h.slice(20)}`;
+};
 const nowISO = () => new Date().toISOString();
 const isCode = k => k === 'qr' || k === 'barcode';
 function safeUrl(u) {
@@ -243,7 +258,7 @@ function byExpiry(a, b) {
 }
 
 /* ---------- 本機資料層 ---------- */
-const STORES = { tickets: 'id', ticket_images: 'id', blobs: 'hash', sync_queue: 'id', meta: 'key' };
+const STORES = { tickets: 'id', ticket_images: 'id', blobs: 'hash', sync_queue: 'id', meta: 'key', sync_base: 'key', conflicts: 'key' };
 const DB = { mode: 'idb', db: null, mem: {} };
 for (const k of Object.keys(STORES)) DB.mem[k] = new Map();
 
@@ -251,7 +266,7 @@ async function openDB() {
   try {
     if (!window.indexedDB) throw new Error('no idb');
     DB.db = await new Promise((res, rej) => {
-      const r = indexedDB.open('quanquan', 1);
+      const r = indexedDB.open('quanquan', 2);
       const timer = setTimeout(() => rej(new Error('timeout')), 5000);
       r.onupgradeneeded = () => {
         const d = r.result;
@@ -288,8 +303,13 @@ async function get(store, key) {
   return idbReq(store, s => s.get(key));
 }
 // 多筆寫入放在同一個交易：要嘛全部成功，要嘛全部不寫
-async function write(ops) {
+async function write(ops, opts = {}) {
   if (!ops.length) return;
+  await rawWrite(ops);
+  // 使用者的修改寫進本機後，才排入雲端同步
+  if (!opts.fromSync && window.Sync && ops.some(o => o.store === 'tickets' || o.store === 'ticket_images' || o.store === 'blobs')) window.Sync.schedule();
+}
+async function rawWrite(ops) {
   if (DB.mode === 'memory') {
     for (const o of ops) o.del ? DB.mem[o.store].delete(o.del) : DB.mem[o.store].set(o.value[STORES[o.store]], { ...o.value });
     return;
@@ -430,17 +450,19 @@ async function copyText(text, label) {
 
 /* ---------- 路由（#home、#add、#t-<id>、#edit-<id>） ---------- */
 const app = $('#app');
-async function route() {
+async function route(keepScroll) {
   closeViewer();
   const h = location.hash.slice(1) || 'home';
   $('#fab').classList.toggle('hidden', h !== 'home');
-  window.scrollTo(0, 0);
+  if (keepScroll !== true) window.scrollTo(0, 0);
+  if (h === 'account') return renderAccount();
+  if (h === 'conflicts') return renderConflicts();
   if (h === 'add') return renderForm(null);
   if (h.startsWith('edit-')) return renderForm(h.slice(5));
   if (h.startsWith('t-')) return renderDetail(h.slice(2));
   return renderHome();
 }
-window.addEventListener('hashchange', route);
+window.addEventListener('hashchange', () => route());
 const go = h => { if (location.hash.slice(1) === h) route(); else location.hash = h; };
 
 /* =========================================================
@@ -479,23 +501,26 @@ function renderHome(noAnim) {
         <span>${soonAll ? `有 ${soonAll} 張票券 7 天內到期，記得使用喔！` : ''}${soonAll && expAll ? '<br>' : ''}${expAll ? `${expAll} 張已過期待處理` : ''}</span></div>` : '';
 
   const storageWarn = DB.mode === 'memory';
+  const nConf = window.Sync ? Sync.status.conflicts : 0;
+  const confBanner = nConf ? `<a class="banner coral" href="#conflicts" style="text-decoration:none">${ICON.bell}<span>有 ${nConf} 筆資料在兩台裝置都改過，請選擇要保留哪一個</span></a>` : '';
   app.innerHTML = `
   <header class="top">${mascotSVG()}
-    <div class="grow"><h1>券券日記</h1>
-      <span class="status ${storageWarn ? 'warn' : ''}"><i></i>${storageWarn ? '暫存模式・關閉後資料會消失' : '本機模式・尚未連接雲端'}</span></div>
+    <div class="grow"><h1>券券日記</h1>${syncChip()}</div>
   </header>
   <input class="search" id="q" type="search" placeholder="搜尋名稱、平台、訂單編號…" value="${esc(S.q)}" aria-label="搜尋票券">
   <nav class="tabs" role="tablist">
     ${[['active','有效',active.length],['soon','即將到期',soon.length],['used','已使用',used.length]].map(([k,n,c]) =>
       `<button role="tab" data-tab="${k}" class="${S.tab === k ? 'on' : ''}" aria-selected="${S.tab === k}">${n}<span class="n">${c}</span></button>`).join('')}
   </nav>
-  ${banner}
+  ${confBanner}${banner}
   <div id="listArea" class="${noAnim ? '' : 'bounce'}">${body}</div>
   <div class="foot">
     <b>資料保存提醒</b><br>
     ${storageWarn
       ? '這個環境不允許保存資料（例如在預覽框裡開啟），重新整理後資料會消失。請部署到正式網址後再開始記錄。'
-      : '目前資料只存在這台裝置的瀏覽器。iPhone 請「加入主畫面」，可降低資料被系統清除的機率。雲端同步（階段二）與 ZIP 備份（階段四）完成前，請不要清除瀏覽器資料。'}
+      : (window.Sync && Sync.status.email
+        ? '票券會先存在這台裝置，再自動同步到你的雲端帳號。沒有網路時一樣可以查看與新增，連線後會自動補上傳。'
+        : '目前資料只存在這台裝置的瀏覽器。<a href="#account">登入雲端同步</a>後，換手機也能找回票券。iPhone 請「加入主畫面」，降低資料被系統清除的機率。')}
     <div id="usage" class="muted"></div>
   </div>`;
 
@@ -886,7 +911,7 @@ async function renderDetail(id) {
   </section>
 
   ${ordered.length ? `<div class="carousel" id="car">${ordered.map((im, i) => `
-      <div class="slide" data-i="${i}" role="button" aria-label="查看原圖"><img src="${urls[i]}" alt="${kindName(im.kind)}" loading="lazy">
+      <div class="slide" data-i="${i}" role="button" aria-label="查看原圖">${urls[i] ? `<img src="${urls[i]}" alt="${kindName(im.kind)}" loading="lazy">` : '<div class="nofile">圖片還在雲端<br>連上網路後會自動下載</div>'}
         <span class="chip ${isCode(im.kind) ? 'take' : 'yellow'}">${kindName(im.kind)}</span>${im.is_primary ? '<span class="chip star">★ 主要</span>' : ''}</div>`).join('')}</div>
       <p class="hint" style="margin-top:-2px">點圖片看原圖。掃描前請把螢幕亮度調高。${ordered.length > 1 ? '左右滑動看其他圖片。' : ''}</p>`
     : `<section class="card panel"><p style="margin:0">還沒有圖片。<a href="#edit-${t.id}">加入 QR Code 截圖</a></p></section>`}
@@ -958,7 +983,7 @@ function openViewer(list, urls, i) {
   const draw = () => {
     v.innerHTML = `<div class="vbar"><button class="iconbtn" data-a="x" aria-label="關閉">✕</button>
         <b class="grow">${kindName(list[i].kind)}</b><button class="btn small plain" data-a="z">放大</button></div>
-      <div class="vimg"><img src="${urls[i]}" alt="${kindName(list[i].kind)} 原圖"></div>
+      <div class="vimg">${urls[i] ? `<img src="${urls[i]}" alt="${kindName(list[i].kind)} 原圖">` : '<div class="nofile">圖片尚未下載</div>'}</div>
       <div class="vnav"><button class="iconbtn" data-a="p" ${i === 0 ? 'disabled' : ''} aria-label="上一張">‹</button>
         <span class="muted">${i + 1} / ${list.length}・請調高螢幕亮度</span>
         <button class="iconbtn" data-a="n" ${i === list.length - 1 ? 'disabled' : ''} aria-label="下一張">›</button></div>`;
@@ -984,16 +1009,179 @@ function openViewer(list, urls, i) {
 function closeViewer() { const v = $('#viewer'); if (v) v.remove(); document.body.style.overflow = ''; }
 document.addEventListener('keydown', e => { if (e.key === 'Escape') closeViewer(); });
 
+/* =========================================================
+   雲端同步：狀態、帳號、衝突
+   ========================================================= */
+function syncChip() {
+  if (DB.mode === 'memory') return '<span class="status warn"><i></i>暫存模式・關閉後資料會消失</span>';
+  const st = window.Sync ? Sync.status : { state: 'off' };
+  const hm = st.lastSync ? fmtHM.format(st.lastSync) : '';
+  const pend = st.pending ? `・${st.pending} 筆待上傳` : '';
+  const map = {
+    off: ['', '本機模式・尚未設定雲端'],
+    loading: ['yellow', '連線中…'],
+    signedout: ['yellow', '本機模式・點我登入同步'],
+    syncing: ['yellow', '同步中…'],
+    ok: ['', `已同步 ${hm}${pend}`],
+    offline: ['yellow', `離線中${pend}`],
+    error: ['warn', `同步異常${pend}`],
+    paused: ['warn', '同步已暫停'],
+  };
+  let [cls, txt] = map[st.state] || map.off;
+  if (st.conflicts) { cls = 'warn'; txt = `有 ${st.conflicts} 筆衝突待處理`; }
+  return `<a class="status ${cls}" id="syncChip" href="#account"><i></i>${esc(txt)}</a>`;
+}
+const STATE_TEXT = {
+  off: ['#FFFCF6', '尚未設定雲端', '請在 config.js 填入 Supabase 網址與 Publishable key。'],
+  loading: ['#F6D27A', '連線中', ''],
+  signedout: ['#F6D27A', '尚未登入', '登入後會把這台裝置上的票券上傳到你的帳號。'],
+  syncing: ['#F6D27A', '同步中', ''],
+  ok: ['#B9DAA5', '同步正常', ''],
+  offline: ['#F6D27A', '目前離線', ''],
+  error: ['#F2A497', '同步異常', ''],
+  paused: ['#F2A497', '同步已暫停', ''],
+};
+function acctStatusHTML() {
+  const st = Sync.status;
+  const [color, title, hint] = STATE_TEXT[st.state] || STATE_TEXT.off;
+  return `<div class="acct-state"><span class="dot" style="background:${color}"></span><div class="grow">
+    <b>${title}</b>${st.email ? `<div class="muted">${esc(st.email)}</div>` : ''}
+    ${st.detail || hint ? `<div class="muted">${esc(st.detail || hint)}</div>` : ''}
+    ${st.lastSync ? `<div class="muted">上次同步：${fmtHM.format(st.lastSync)}</div>` : ''}
+    ${st.pending ? `<div class="muted">${st.pending} 筆修改等待上傳（已安全存在這台裝置）</div>` : ''}
+    ${st.conflicts ? `<a class="btn small coral" href="#conflicts" style="margin-top:6px">處理 ${st.conflicts} 筆衝突</a>` : ''}
+  </div></div>`;
+}
+function renderAccount() {
+  if (!window.Sync) { app.innerHTML = '<p>同步模組載入中…</p>'; return; }
+  const st = Sync.status;
+  const cfg = window.QUANQUAN_CONFIG || {};
+  let body = '';
+  if (st.state === 'off') {
+    body = `<section class="card panel"><p style="margin:0">還沒設定雲端。請打開專案裡的 <b>config.js</b>，填入 Supabase 的 Project URL 與 Publishable key，再重新部署。</p></section>`;
+  } else if (st.state === 'paused') {
+    body = `<section class="card panel"><p style="margin-top:0">這台裝置上的票券屬於另一個帳號。為了避免資料混在一起，已暫停同步。</p>
+      <div class="actions"><button class="btn plain" id="btnOut">登出</button><button class="btn coral" id="btnClear">清除本機，改用這個帳號</button></div>
+      <p class="hint">清除前請先確定原本帳號的資料已同步完成。</p></section>`;
+  } else if (!st.email) {
+    body = `<section class="card panel"><h3>用 Email 驗證碼登入</h3>
+      <form id="fEmail"><label class="field"><span>Email</span><input name="email" type="email" inputmode="email" autocomplete="email" required placeholder="you@example.com"></label>
+        <button class="btn coral block" id="btnSend">寄送驗證碼</button></form>
+      <form id="fCode" class="hidden" style="margin-top:14px"><label class="field"><span>信件裡的驗證碼</span><input name="code" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]*" maxlength="10" required placeholder="6 位數字"></label>
+        <button class="btn coral block" id="btnVerify">登入</button>
+        <p class="hint">請在這個 App 裡輸入驗證碼，不要點信中的連結：iPhone 會用 Safari 開啟，登入狀態不會帶回主畫面 App。</p></form>
+      ${cfg.googleLogin ? '<button class="btn plain block" id="btnGoogle" style="margin-top:12px">使用 Google 登入</button>' : ''}
+    </section>`;
+  } else {
+    body = `<section class="card panel"><div class="actions"><button class="btn take" id="btnSync">立即同步</button><button class="btn plain" id="btnOut">登出</button></div>
+      <p class="hint">登出後，這台裝置上的票券仍然保留，可以離線查看。</p></section>`;
+  }
+  app.innerHTML = `<div class="bar"><button class="iconbtn" id="back" aria-label="返回">‹</button><h2>雲端同步</h2></div>
+    <section class="card panel" id="acctStatus">${acctStatusHTML()}</section>${body}
+    <section class="card panel"><h3>同步規則</h3><p class="hint" style="margin:0">
+      ・所有修改先存在這台裝置，再上傳雲端。<br>・兩台裝置改了不同欄位，會自動合併。<br>
+      ・改了同一個欄位，會請你選擇要保留哪一個。<br>・任一台標記「已使用」，就以已使用為準。<br>
+      ・一台刪除、另一台有修改時，會先詢問你。<br>・雲端暫停或離線時，不會刪除這台裝置的任何資料。</p></section>`;
+  $('#back').onclick = () => go('home');
+  const f1 = $('#fEmail');
+  if (f1) f1.onsubmit = async e => {
+    e.preventDefault();
+    const email = f1.email.value.trim();
+    if (!email) return;
+    const b = $('#btnSend'); b.disabled = true; b.textContent = '寄送中…';
+    try { await Sync.sendCode(email); toast('驗證碼已寄出，請查看信箱'); $('#fCode').classList.remove('hidden'); $('#fCode').code.focus(); b.textContent = '重新寄送'; }
+    catch (err) { toast(authErr(err)); b.textContent = '寄送驗證碼'; }
+    finally { b.disabled = false; }
+  };
+  const f2 = $('#fCode');
+  if (f2) f2.onsubmit = async e => {
+    e.preventDefault();
+    const b = $('#btnVerify'); b.disabled = true; b.textContent = '登入中…';
+    try { await Sync.verifyCode(f1.email.value.trim(), f2.code.value.trim()); toast('登入成功，開始同步'); setTimeout(() => route(), 300); }
+    catch (err) { toast(authErr(err)); b.disabled = false; b.textContent = '登入'; }
+  };
+  const g = $('#btnGoogle'); if (g) g.onclick = () => Sync.signInGoogle().catch(err => toast(authErr(err)));
+  const bs = $('#btnSync'); if (bs) bs.onclick = () => { Sync.syncNow(); toast('開始同步'); };
+  const bo = $('#btnOut'); if (bo) bo.onclick = async () => {
+    if (Sync.status.pending && !(await ask(`還有 ${Sync.status.pending} 筆修改沒上傳。\n登出後會保留在這台裝置，下次登入同一個帳號時再上傳。`, '仍要登出'))) return;
+    await Sync.signOut(); route();
+  };
+  const bc = $('#btnClear'); if (bc) bc.onclick = async () => {
+    if (!(await ask('會清除這台裝置上「另一個帳號」的票券與圖片，然後下載目前帳號的資料。\n確定嗎？', '清除並切換', true))) return;
+    await Sync.clearLocalForNewAccount(); await load(); route();
+  };
+}
+function authErr(err) {
+  const m = (err && (err.message || err.code)) || '';
+  if (/rate|too many|seconds/i.test(m)) return '寄送太頻繁，請稍等一下再試';
+  if (/expired|invalid|token/i.test(m)) return '驗證碼錯誤或已過期，請重新寄送';
+  if (/fetch|network/i.test(m)) return '無法連線到雲端，請檢查網路';
+  return '登入失敗：' + m;
+}
+function fmtVal(f, v) {
+  if (f === 'deleted_at') return v ? '刪除這張票券' : '保留這張票券';
+  if (f === 'status') return v === 'used' ? '已使用' : '未使用';
+  if (f === 'platform') return (PLATFORMS.find(p => p.id === v) || { name: v }).name;
+  if (f === 'category') return catName(v);
+  if (f === 'kind') return kindName(v);
+  if (f === 'expires_on') return v ? fmtDate(v) : '未設定';
+  if (f === 'reminders') return v && v.length ? v.map(n => n === 0 ? '當天' : `前 ${n} 天`).join('、') : '不提醒';
+  if (f === 'used_at') return v ? new Date(v).toLocaleString('zh-TW', { timeZone: TZ }) : '（無）';
+  if (f === 'is_primary') return v ? '是' : '否';
+  return v === null || v === undefined || v === '' ? '（空白）' : String(v);
+}
+async function renderConflicts() {
+  const list = window.Sync ? await Sync.conflicts() : [];
+  app.innerHTML = `<div class="bar"><button class="iconbtn" id="back" aria-label="返回">‹</button><h2>選擇要保留的資料</h2></div>
+    ${list.length ? `<p class="hint" style="margin:-6px 4px 12px">這些票券在兩台裝置上都被修改過，而且改的是同一個地方。請選擇要保留哪一邊。</p>` : emptyHTML('沒有需要處理的衝突')}
+    ${list.map(c => `<form class="card panel" data-key="${esc(c.key)}">
+      <h3>${esc(c.local.title || c.remote.title || '票券圖片')}</h3>
+      ${c.fields.map(f => `<div class="cfield"><b>${esc(Sync.LABEL[f] || f)}</b>
+        <label class="opt"><input type="radio" name="${f}" value="local"><span><span class="chip yellow">這台裝置</span><br>${esc(fmtVal(f, c.local[f]))}</span></label>
+        <label class="opt"><input type="radio" name="${f}" value="remote"><span><span class="chip mizu">另一台裝置</span><br>${esc(fmtVal(f, c.remote[f]))}</span></label></div>`).join('')}
+      <button class="btn coral block" style="margin-top:12px">確定</button></form>`).join('')}`;
+  $('#back').onclick = () => go('home');
+  app.querySelectorAll('form[data-key]').forEach(f => f.onsubmit = async e => {
+    e.preventDefault();
+    const c = list.find(x => x.key === f.dataset.key);
+    const choice = {};
+    for (const field of c.fields) {
+      const v = (f.querySelector(`input[name="${field}"]:checked`) || {}).value;
+      if (!v) return toast(`請選擇「${Sync.LABEL[field] || field}」要保留哪一邊`);
+      choice[field] = v;
+    }
+    await Sync.resolveConflict(c.key, choice);
+    await load();
+    toast('已更新，正在同步');
+    route();
+  });
+}
+// 同步拉下新資料時，重新整理畫面（不打斷正在填寫的表單或全螢幕看圖）
+window.onSyncData = async () => {
+  await load();
+  const h = location.hash.slice(1) || 'home';
+  if (!S.draft && !$('#viewer') && (h === 'home' || h.startsWith('t-'))) route(true);
+};
+
 /* ---------- 啟動 ---------- */
-(async function start() {
+window.appReady = (async function start() {
   await openDB();
   try { await load(); } catch (e) { console.error(e); DB.mode = 'memory'; }
   route();
+  // 同步狀態改變時，只更新狀態標籤，不重畫整頁
+  const hookSync = () => window.Sync && Sync.onChange(() => {
+    const chip = $('#syncChip'); if (chip) chip.outerHTML = syncChip();
+    const box = $('#acctStatus'); if (box) box.innerHTML = acctStatusHTML();
+    const h = location.hash.slice(1) || 'home';
+    if (h === 'home' && !!$('.banner.coral[href="#conflicts"]') !== !!Sync.status.conflicts) route(true);
+  });
+  if (window.Sync) hookSync(); else window.addEventListener('load', hookSync, { once: true });
   // 跨午夜時重新計算剩餘天數
   let lastDay = today();
   setInterval(() => { if (today() !== lastDay) { lastDay = today(); if (!S.draft) route(); } }, 60000);
   document.addEventListener('visibilitychange', () => { if (!document.hidden && today() !== lastDay) { lastDay = today(); if (!S.draft) route(); } });
 })();
 </script>
+<script src="sync.js"></script>
 </body>
 </html>
