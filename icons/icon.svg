@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+<rect width="1024" height="1024" fill="#F6D27A"/>
+<g transform="translate(0 0)">
+  <!-- 票券（從口袋探出來） -->
+  <g transform="rotate(-7 512 340)">
+    <path d="M318 180 H706 Q742 180 742 216 V298 A42 42 0 0 0 742 382 V464 Q742 500 706 500 H318 Q282 500 282 464 V382 A42 42 0 0 0 282 298 V216 Q282 180 318 180 Z"
+      fill="#F2A497" stroke="#3E3A39" stroke-width="28" stroke-linejoin="round"/>
+    <line x1="400" y1="222" x2="400" y2="458" stroke="#3E3A39" stroke-width="16" stroke-linecap="round" stroke-dasharray="1 38"/>
+    <path d="M572 248 L590 290 L636 294 L601 324 L612 369 L572 345 L532 369 L543 324 L508 294 L554 290 Z"
+      fill="#FFFCF6" stroke="#3E3A39" stroke-width="14" stroke-linejoin="round"/>
+  </g>
+  <!-- 口袋（票夾） -->
+  <rect x="212" y="450" width="600" height="360" rx="64" fill="#FFFCF6" stroke="#3E3A39" stroke-width="28"/>
+  <line x1="268" y1="530" x2="756" y2="530" stroke="#3E3A39" stroke-width="12" stroke-linecap="round" stroke-dasharray="22 26"/>
+  <!-- 小臉 -->
+  <circle cx="440" cy="650" r="17" fill="#3E3A39"/>
+  <circle cx="584" cy="650" r="17" fill="#3E3A39"/>
+  <path d="M482 690 Q512 718 542 690" fill="none" stroke="#3E3A39" stroke-width="14" stroke-linecap="round"/>
+  <ellipse cx="392" cy="700" rx="30" ry="18" fill="#F2A497"/>
+  <ellipse cx="632" cy="700" rx="30" ry="18" fill="#F2A497"/>
+  <!-- 若竹綠小葉 -->
+  <path d="M300 770 Q300 720 346 712 Q350 760 300 770 Z" fill="#B9DAA5" stroke="#3E3A39" stroke-width="12" stroke-linejoin="round"/>
+  <!-- 水色提醒鈴鐺 -->
+  <circle cx="748" cy="262" r="84" fill="#A8D3E6" stroke="#3E3A39" stroke-width="24"/>
+  <path d="M714 296 C714 254 718 226 748 226 C778 226 782 254 782 296 Z" fill="#FFFCF6" stroke="#3E3A39" stroke-width="14" stroke-linejoin="round"/>
+  <line x1="704" y1="298" x2="792" y2="298" stroke="#3E3A39" stroke-width="14" stroke-linecap="round"/>
+  <circle cx="748" cy="312" r="11" fill="#3E3A39"/>
+  <circle cx="748" cy="216" r="9" fill="#3E3A39"/>
+</g></svg>

@@ -1,0 +1,999 @@
+<!DOCTYPE html>
+<html lang="zh-Hant-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#FFFCF6">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="券券日記">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="icon" type="image/png" href="icons/favicon-32.png">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Huninn&display=swap">
+<title>券券日記</title>
+<style>
+:root{
+  --paper:#FFFCF6;--ink:#3E3A39;--coral:#F2A497;--yellow:#F6D27A;--mizu:#A8D3E6;--take:#B9DAA5;
+  --white:#FFFFFF;--r:22px;--bw:3px;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;background:var(--paper);color:var(--ink)}
+body{
+  font-family:"Huninn","Hiragino Maru Gothic ProN","PingFang TC","Noto Sans TC","Microsoft JhengHei",sans-serif;
+  padding:env(safe-area-inset-top) env(safe-area-inset-right) calc(env(safe-area-inset-bottom) + 100px) env(safe-area-inset-left);
+  min-height:100vh;line-height:1.5;font-size:16px;
+}
+a{color:inherit}
+button,input,select,textarea{font:inherit;color:inherit}
+.wrap{max-width:560px;margin:0 auto;padding:14px 16px}
+.hidden{display:none!important}
+
+/* ---------- 共用元件 ---------- */
+.card{border:var(--bw) solid var(--ink);border-radius:var(--r);background:var(--paper);box-shadow:0 4px 0 var(--ink)}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:46px;padding:8px 18px;
+  border:var(--bw) solid var(--ink);border-radius:999px;background:var(--yellow);box-shadow:0 3px 0 var(--ink);
+  font-weight:700;text-decoration:none;cursor:pointer;user-select:none}
+.btn:active{transform:translateY(3px);box-shadow:0 0 0 var(--ink)}
+.btn.coral{background:var(--coral)} .btn.mizu{background:var(--mizu)} .btn.take{background:var(--take)}
+.btn.plain{background:var(--paper)} .btn.small{min-height:36px;padding:4px 12px;font-size:14px}
+.btn.block{width:100%}
+.btn[disabled]{opacity:.45;pointer-events:none}
+.iconbtn{width:40px;height:40px;border:var(--bw) solid var(--ink);border-radius:50%;background:var(--paper);
+  display:inline-flex;align-items:center;justify-content:center;cursor:pointer;font-size:18px;font-weight:700;padding:0}
+.iconbtn:active{transform:translateY(2px)}
+.chip{display:inline-block;padding:0 9px;border:2px solid var(--ink);border-radius:999px;font-size:12px;background:var(--paper);white-space:nowrap}
+.chip.mizu{background:var(--mizu)} .chip.take{background:var(--take)} .chip.coral{background:var(--coral)} .chip.yellow{background:var(--yellow)}
+.muted{opacity:.7;font-size:14px}
+.row{display:flex;gap:10px;align-items:center}
+.grow{flex:1;min-width:0}
+
+/* ---------- 頁首 ---------- */
+.top{display:flex;align-items:center;gap:12px;margin:4px 0 12px}
+.top h1{margin:0;font-size:26px;letter-spacing:2px}
+.mascot{width:64px;height:64px;flex:none}
+.status{display:inline-flex;align-items:center;gap:6px;font-size:12px;padding:2px 10px;border:2px solid var(--ink);border-radius:999px;background:var(--take)}
+.status.warn{background:var(--coral)}
+.status i{width:8px;height:8px;border-radius:50%;background:var(--ink);display:inline-block}
+
+/* ---------- 首頁 ---------- */
+.search{width:100%;min-height:46px;padding:8px 16px;border:var(--bw) solid var(--ink);border-radius:999px;background:var(--white);outline:none}
+.search:focus{box-shadow:0 0 0 4px var(--mizu)}
+.tabs{display:flex;gap:6px;margin:14px 0;padding:4px;border:var(--bw) solid var(--ink);border-radius:999px;background:var(--white)}
+.tabs button{flex:1;min-height:40px;border:0;border-radius:999px;background:transparent;font-weight:700;cursor:pointer}
+.tabs button.on{background:var(--yellow);box-shadow:inset 0 0 0 2px var(--ink)}
+.tabs .n{font-size:12px;opacity:.75;margin-left:2px}
+.banner{display:flex;gap:10px;align-items:center;padding:10px 14px;margin:0 0 12px;border:var(--bw) solid var(--ink);border-radius:18px;background:var(--yellow);font-weight:700;cursor:pointer}
+.banner.coral{background:var(--coral)}
+.banner svg{flex:none}
+.sec{margin:18px 4px 8px;font-size:15px;font-weight:700;display:flex;align-items:center;gap:8px}
+.sec small{font-weight:400;opacity:.7}
+.list{display:flex;flex-direction:column;gap:12px}
+.tcard{display:grid;grid-template-columns:52px 1fr auto;gap:12px;align-items:center;padding:12px;text-decoration:none}
+.tcard:active{transform:translateY(3px);box-shadow:0 1px 0 var(--ink)}
+.tcard.is-used{opacity:.6}
+.tcard.is-exp{border-style:dashed}
+.cat{width:52px;height:52px;display:block}
+.cat svg{width:52px;height:52px;display:block}
+.ttl{display:block;font-size:16px;line-height:1.3;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.meta{display:flex;flex-wrap:wrap;gap:4px;margin:4px 0 2px}
+.date{display:block;font-size:13px;opacity:.8}
+.dpill{min-width:64px;text-align:center;padding:6px 8px;border:var(--bw) solid var(--ink);border-radius:14px;font-size:13px;font-weight:700;line-height:1.2;background:var(--take)}
+.d-urgent{background:var(--coral)} .d-soon{background:var(--yellow)} .d-none{background:var(--paper)}
+.d-exp{background:var(--paper);border-style:dashed} .d-used{background:var(--paper)}
+.empty{text-align:center;padding:30px 10px}
+.empty svg{width:140px;height:140px}
+.fab{position:fixed;right:calc(18px + env(safe-area-inset-right));bottom:calc(20px + env(safe-area-inset-bottom));
+  width:66px;height:66px;border-radius:50%;border:var(--bw) solid var(--ink);background:var(--coral);box-shadow:0 4px 0 var(--ink);
+  display:flex;align-items:center;justify-content:center;z-index:20;cursor:pointer;text-decoration:none}
+.fab:active{transform:translateY(4px);box-shadow:none}
+.foot{margin-top:28px;padding:12px 14px;border:2px dashed var(--ink);border-radius:18px;font-size:13px}
+
+/* ---------- 子頁 ---------- */
+.bar{display:flex;align-items:center;gap:10px;margin:2px 0 14px}
+.bar h2{margin:0;font-size:20px;flex:1}
+.panel{padding:14px;margin-bottom:14px}
+.panel h3{margin:0 0 10px;font-size:16px}
+.ways{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+.way{display:flex;flex-direction:column;align-items:center;gap:4px;padding:12px 6px;border:var(--bw) solid var(--ink);border-radius:18px;background:var(--white);cursor:pointer;font-weight:700;font-size:14px;text-align:center;position:relative}
+.way:active{transform:translateY(2px)}
+.way svg{width:34px;height:34px}
+.way.off{opacity:.5;cursor:default}
+.way input[type=file]{position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer;font-size:0;z-index:1}
+.way .soon{position:absolute;top:-9px;right:-4px;font-size:11px}
+.pastebox{margin-top:10px;min-height:70px;padding:12px;border:var(--bw) dashed var(--ink);border-radius:16px;background:var(--white);text-align:center;outline:none;-webkit-user-select:text;user-select:text}
+.imgs{display:flex;flex-direction:column;gap:10px;margin-top:10px}
+.imgrow{display:grid;grid-template-columns:72px 1fr;gap:10px;align-items:center;padding:8px;border:2px solid var(--ink);border-radius:16px;background:var(--white)}
+.imgrow img{width:72px;height:72px;object-fit:cover;border-radius:10px;border:2px solid var(--ink);background:#fff}
+.imgrow .ctrl{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.imgrow select{min-height:36px;border:2px solid var(--ink);border-radius:10px;background:var(--paper);padding:2px 6px}
+.imgrow .iconbtn{width:34px;height:34px;font-size:15px;border-width:2px}
+.imgrow .iconbtn.on{background:var(--yellow)}
+.field{display:block;margin-bottom:12px}
+.field>span{display:block;font-size:14px;font-weight:700;margin:0 0 4px 4px}
+.field input,.field select,.field textarea{width:100%;min-height:46px;padding:8px 14px;border:var(--bw) solid var(--ink);border-radius:14px;background:var(--white);outline:none;font-size:16px}
+.field textarea{min-height:76px;resize:vertical}
+.field input:focus,.field select:focus,.field textarea:focus{box-shadow:0 0 0 4px var(--mizu)}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:10px}.two>*{min-width:0}.field input[type=date],.field input[type=time]{-webkit-appearance:none;appearance:none;display:block;min-width:0}
+.seg{display:flex;gap:8px;flex-wrap:wrap}
+.seg label{cursor:pointer}
+.seg input{position:absolute;opacity:0;pointer-events:none}
+.seg span{display:inline-block;padding:6px 14px;border:var(--bw) solid var(--ink);border-radius:999px;background:var(--white);font-size:14px;font-weight:700}
+.seg input:checked+span{background:var(--yellow)}
+.seg input:focus-visible+span{box-shadow:0 0 0 4px var(--mizu)}
+.hint{font-size:13px;opacity:.75;margin:6px 4px 0}
+.savebar{position:sticky;bottom:calc(10px + env(safe-area-inset-bottom));margin-top:16px;display:flex;gap:10px}
+.savebar .btn{flex:1}
+
+/* 詳細頁 */
+.hero{display:flex;gap:12px;align-items:center;padding:14px;margin-bottom:14px}
+.hero .cat,.hero .cat svg{width:64px;height:64px}
+.hero h2{margin:0;font-size:20px;line-height:1.3;word-break:break-word}
+.carousel{display:flex;gap:12px;overflow-x:auto;scroll-snap-type:x mandatory;padding:4px 2px 10px;-webkit-overflow-scrolling:touch}
+.slide{flex:0 0 86%;scroll-snap-align:center;border:var(--bw) solid var(--ink);border-radius:18px;background:#fff;overflow:hidden;position:relative;cursor:zoom-in}
+.slide img{display:block;width:100%;height:300px;object-fit:contain;background:#fff}
+.slide .chip{position:absolute;left:8px;top:8px}
+.slide .star{position:absolute;left:auto;right:8px;top:8px}
+.kv{display:grid;grid-template-columns:96px 1fr;gap:8px 10px;font-size:15px}
+.kv dt{font-weight:700;opacity:.8}
+.kv dd{margin:0;word-break:break-all}
+.actions{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.code{font-family:ui-monospace,Menlo,monospace;letter-spacing:1px}
+
+/* 全螢幕原圖 */
+.viewer{position:fixed;inset:0;z-index:50;background:#fff;display:flex;flex-direction:column}
+.viewer .vbar{display:flex;align-items:center;gap:8px;padding:calc(10px + env(safe-area-inset-top)) 12px 10px;border-bottom:var(--bw) solid var(--ink);background:var(--paper)}
+.viewer .vimg{flex:1;overflow:auto;display:flex;align-items:center;justify-content:center;background:#fff;touch-action:pan-x pan-y pinch-zoom}
+.viewer .vimg img{max-width:100%;max-height:100%;image-rendering:auto}
+.viewer .vimg.zoom{align-items:flex-start;justify-content:flex-start}
+.viewer .vimg.zoom img{max-width:none;max-height:none}
+.viewer .vnav{display:flex;justify-content:space-between;align-items:center;padding:10px 14px calc(10px + env(safe-area-inset-bottom));border-top:var(--bw) solid var(--ink);background:var(--paper)}
+
+/* 對話框與提示 */
+.modal{position:fixed;inset:0;z-index:60;background:rgba(62,58,57,.35);display:flex;align-items:flex-end;justify-content:center;padding:16px}
+.modal .card{width:100%;max-width:440px;padding:18px;margin-bottom:env(safe-area-inset-bottom)}
+.modal p{margin:0 0 14px;white-space:pre-line}
+.toast{position:fixed;left:50%;bottom:calc(100px + env(safe-area-inset-bottom));transform:translateX(-50%);z-index:70;
+  max-width:92vw;padding:10px 16px;border:var(--bw) solid var(--ink);border-radius:16px;background:var(--paper);box-shadow:0 3px 0 var(--ink);
+  display:flex;gap:10px;align-items:center;font-size:14px;font-weight:700;animation:pop .35s cubic-bezier(.3,1.6,.5,1)}
+
+/* ---------- 動畫 ---------- */
+@keyframes floaty{0%,100%{transform:translateY(0)}50%{transform:translateY(-5px)}}
+@keyframes wiggle{0%,70%,100%{transform:rotate(0)}78%{transform:rotate(-14deg)}86%{transform:rotate(12deg)}94%{transform:rotate(-6deg)}}
+@keyframes blink{0%,92%,100%{transform:scaleY(1)}96%{transform:scaleY(.1)}}
+@keyframes steam{0%,100%{transform:translateY(0);opacity:.9}50%{transform:translateY(-3px);opacity:.4}}
+@keyframes bounceIn{0%{transform:translateY(16px) scale(.97);opacity:0}60%{transform:translateY(-6px) scale(1.01);opacity:1}100%{transform:none;opacity:1}}
+@keyframes pop{0%{transform:translateX(-50%) scale(.8);opacity:0}100%{transform:translateX(-50%) scale(1);opacity:1}}
+.anim-float{animation:floaty 3.2s ease-in-out infinite;transform-box:fill-box;transform-origin:center}
+.anim-wiggle{animation:wiggle 3.6s ease-in-out infinite;transform-box:fill-box;transform-origin:50% 10%}
+.anim-blink{animation:blink 4.5s infinite;transform-box:fill-box;transform-origin:center}
+.anim-steam{animation:steam 2.4s ease-in-out infinite}
+.bounce .tcard,.bounce .sec,.bounce .empty{animation:bounceIn .5s cubic-bezier(.3,1.5,.5,1) backwards;animation-delay:calc(min(var(--i,0),8) * 45ms)}
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation:none!important;transition:none!important;scroll-behavior:auto!important}
+}
+@media (min-width:720px){ .slide{flex-basis:60%} }
+</style>
+</head>
+<body>
+<div class="wrap" id="app" aria-live="polite"></div>
+<a class="fab" href="#add" id="fab" aria-label="新增票券">
+  <svg width="34" height="34" viewBox="0 0 34 34" aria-hidden="true"><path d="M17 5v24M5 17h24" stroke="#3E3A39" stroke-width="5" stroke-linecap="round"/></svg>
+</a>
+<div id="layer"></div>
+
+<script>
+'use strict';
+/* =========================================================
+   券券日記・階段一
+   本機資料層（IndexedDB，失敗時退回記憶體暫存）、票券管理、
+   獨立 QR Code、多圖片、原圖檢視、跨平台到期排序
+   ========================================================= */
+
+const TZ = 'Asia/Taipei';
+const INK = '#3E3A39';
+const PLATFORMS = [
+  { id: 'yahoo',  name: 'Yahoo購物中心', home: 'https://tw.buy.yahoo.com/' },
+  { id: 'momo',   name: 'momo購物網',   home: 'https://www.momoshop.com.tw/' },
+  { id: 'pchome', name: 'PChome 24h',  home: 'https://24h.pchome.com.tw/' },
+  { id: 'shopee', name: '蝦皮購物',      home: 'https://shopee.tw/' },
+  { id: 'line',   name: 'LINE禮物',     home: 'https://gift.line.me/' },
+  { id: 'other',  name: '其他',          home: '' },
+];
+const CATS = [['coffee','咖啡飲料'],['food','餐廳美食'],['store','超商量販'],['movie','電影娛樂'],['gift','禮物百貨'],['other','其他']];
+const KINDS = [['info','票券資訊'],['qr','QR Code'],['barcode','條碼'],['guide','使用說明'],['other','其他']];
+const REMIND_PRESETS = [[0,'當天'],[1,'前 1 天'],[3,'前 3 天'],[7,'前 7 天'],[14,'前 14 天']];
+
+/* ---------- 小工具 ---------- */
+const $ = (s, r = document) => r.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const uuid = () => (crypto.randomUUID ? crypto.randomUUID() : 'id' + Date.now().toString(36) + Math.random().toString(36).slice(2, 10));
+const nowISO = () => new Date().toISOString();
+const isCode = k => k === 'qr' || k === 'barcode';
+function safeUrl(u) {
+  if (!u) return null;
+  try { const x = new URL(u); return (x.protocol === 'https:' || x.protocol === 'http:') ? x.href : null; } catch { return null; }
+}
+
+/* ---------- 日期（全部以台北時區的「日期字串」計算，避免 UTC 提前一天） ---------- */
+const fmtDay = new Intl.DateTimeFormat('en-CA', { timeZone: TZ, year: 'numeric', month: '2-digit', day: '2-digit' });
+const fmtHM  = new Intl.DateTimeFormat('en-GB', { timeZone: TZ, hour: '2-digit', minute: '2-digit', hourCycle: 'h23' });
+const today = () => fmtDay.format(new Date());               // 'YYYY-MM-DD'
+const nowHM = () => fmtHM.format(new Date());                // 'HH:MM'
+const dayNum = s => { const [y, m, d] = s.split('-').map(Number); return Date.UTC(y, m - 1, d) / 864e5; };
+const WEEK = '日一二三四五六';
+function fmtDate(s) {
+  const [y, m, d] = s.split('-').map(Number);
+  return `${y}/${String(m).padStart(2,'0')}/${String(d).padStart(2,'0')}（${WEEK[new Date(Date.UTC(y, m - 1, d)).getUTCDay()]}）`;
+}
+function daysLeft(t) { return t.expires_on ? dayNum(t.expires_on) - dayNum(today()) : null; }
+function isExpired(t) {
+  const d = daysLeft(t);
+  if (d === null) return false;
+  if (d < 0) return true;
+  // 只有日期、沒有時間時，當天整天都視為有效，不自行假設 23:59
+  return d === 0 && !!t.expires_time && nowHM() > t.expires_time;
+}
+// 全域排序：只看有效期限，不看平台或分類
+function byExpiry(a, b) {
+  const ka = (a.expires_on || '9999-12-31') + ' ' + (a.expires_time || '99:99');
+  const kb = (b.expires_on || '9999-12-31') + ' ' + (b.expires_time || '99:99');
+  return ka < kb ? -1 : ka > kb ? 1 : (a.created_at < b.created_at ? -1 : 1);
+}
+
+/* ---------- 本機資料層 ---------- */
+const STORES = { tickets: 'id', ticket_images: 'id', blobs: 'hash', sync_queue: 'id', meta: 'key' };
+const DB = { mode: 'idb', db: null, mem: {} };
+for (const k of Object.keys(STORES)) DB.mem[k] = new Map();
+
+async function openDB() {
+  try {
+    if (!window.indexedDB) throw new Error('no idb');
+    DB.db = await new Promise((res, rej) => {
+      const r = indexedDB.open('quanquan', 1);
+      const timer = setTimeout(() => rej(new Error('timeout')), 5000);
+      r.onupgradeneeded = () => {
+        const d = r.result;
+        for (const [name, key] of Object.entries(STORES)) {
+          if (d.objectStoreNames.contains(name)) continue;
+          const s = d.createObjectStore(name, { keyPath: key });
+          if (name === 'ticket_images') { s.createIndex('ticket_id', 'ticket_id'); s.createIndex('hash', 'hash'); }
+        }
+      };
+      r.onsuccess = () => { clearTimeout(timer); res(r.result); };
+      r.onerror = () => { clearTimeout(timer); rej(r.error); };
+    });
+    // 實際寫讀一次，確認這個環境真的能存
+    await write([{ store: 'meta', value: { key: 'probe', at: nowISO() } }]);
+  } catch (e) {
+    DB.mode = 'memory'; DB.db = null;
+  }
+  try { if (navigator.storage && navigator.storage.persist) await navigator.storage.persist(); } catch {}
+}
+function idbReq(store, fn) {
+  return new Promise((res, rej) => {
+    const t = DB.db.transaction(store, 'readonly');
+    const r = fn(t.objectStore(store));
+    r.onsuccess = () => res(r.result);
+    r.onerror = () => rej(r.error);
+  });
+}
+async function all(store) {
+  if (DB.mode === 'memory') return [...DB.mem[store].values()].map(v => ({ ...v }));
+  return idbReq(store, s => s.getAll());
+}
+async function get(store, key) {
+  if (DB.mode === 'memory') { const v = DB.mem[store].get(key); return v ? { ...v } : undefined; }
+  return idbReq(store, s => s.get(key));
+}
+// 多筆寫入放在同一個交易：要嘛全部成功，要嘛全部不寫
+async function write(ops) {
+  if (!ops.length) return;
+  if (DB.mode === 'memory') {
+    for (const o of ops) o.del ? DB.mem[o.store].delete(o.del) : DB.mem[o.store].set(o.value[STORES[o.store]], { ...o.value });
+    return;
+  }
+  const names = [...new Set(ops.map(o => o.store))];
+  await new Promise((res, rej) => {
+    const t = DB.db.transaction(names, 'readwrite');
+    for (const o of ops) { const s = t.objectStore(o.store); o.del ? s.delete(o.del) : s.put(o.value); }
+    t.oncomplete = res; t.onerror = () => rej(t.error); t.onabort = () => rej(t.error || new Error('abort'));
+  });
+}
+// 階段二的同步會讀這個佇列，現在先把每一筆修改記下來
+const queueOp = (table, id, op) => ({ store: 'sync_queue', value: { id: uuid(), table, record_id: id, op, at: nowISO() } });
+
+async function sha256(blob) {
+  try {
+    const buf = await blob.arrayBuffer();
+    const h = await crypto.subtle.digest('SHA-256', buf);
+    return [...new Uint8Array(h)].map(b => b.toString(16).padStart(2, '0')).join('');
+  } catch { return 'nohash-' + uuid(); }
+}
+const urlCache = new Map();
+async function blobUrl(hash) {
+  if (urlCache.has(hash)) return urlCache.get(hash);
+  const rec = await get('blobs', hash);
+  if (!rec) return '';
+  const b = rec.blob || (rec.data ? new Blob([rec.data], { type: rec.type || 'image/jpeg' }) : null);
+  if (!b) return '';
+  const u = URL.createObjectURL(b);
+  urlCache.set(hash, u);
+  return u;
+}
+
+// 把目前讀得到的資料搬到記憶體，之後都寫在記憶體裡
+async function fallbackToMemory() {
+  for (const name of Object.keys(STORES)) {
+    let rows = [];
+    try { rows = await all(name); } catch {}
+    for (const r of rows) DB.mem[name].set(r[STORES[name]], r);
+  }
+  DB.mode = 'memory'; DB.db = null;
+}
+
+/* ---------- 狀態 ---------- */
+const S = { tickets: [], images: [], tab: 'active', q: '', draft: null, prefill: null };
+async function load() {
+  S.tickets = (await all('tickets')).filter(t => !t.deleted_at);
+  S.images = (await all('ticket_images')).filter(i => !i.deleted_at);
+}
+const imagesOf = id => S.images.filter(i => i.ticket_id === id).sort((a, b) => a.sort - b.sort);
+const platOf = t => PLATFORMS.find(p => p.id === t.platform) || PLATFORMS[PLATFORMS.length - 1];
+const platName = t => (t.platform === 'other' && t.platform_name) ? t.platform_name : platOf(t).name;
+const catName = c => (CATS.find(x => x[0] === c) || CATS[5])[1];
+const kindName = k => (KINDS.find(x => x[0] === k) || KINDS[4])[1];
+const groupKey = t => t.title.trim().toLowerCase() + '|' + platName(t);
+
+/* ---------- SVG 插圖 ---------- */
+const CAT_BG = { coffee: '#A8D3E6', food: '#F6D27A', store: '#B9DAA5', movie: '#A8D3E6', gift: '#F2A497', other: '#F6D27A' };
+function catSVG(c, animate = false) {
+  const a = animate ? 'class="anim-float"' : '';
+  const st = animate ? 'class="anim-steam"' : '';
+  const body = {
+    coffee: `<g ${a}><path d="M16 24h18v12a6 6 0 0 1-6 6h-6a6 6 0 0 1-6-6z" fill="#FFFCF6"/><path d="M34 27h3a4 4 0 0 1 0 8h-3" fill="none"/>
+      <g ${st}><path d="M21 13c-2 3 2 5 0 8M28 13c-2 3 2 5 0 8" fill="none" stroke-width="2.5"/></g></g>`,
+    food: `<g ${a}><path d="M12 28h30a15 13 0 0 1-30 0z" fill="#FFFCF6"/><path d="M30 10l8 15M36 9l4 16" fill="none"/>
+      <circle cx="21" cy="34" r="1.6" fill="${INK}" stroke="none"/><circle cx="31" cy="34" r="1.6" fill="${INK}" stroke="none"/></g>`,
+    store: `<g ${a}><rect x="13" y="24" width="28" height="17" rx="2" fill="#FFFCF6"/><path d="M11 18h32l-2 7H13z" fill="#F2A497"/>
+      <path d="M21 41v-9h8v9" fill="#F6D27A"/></g>`,
+    movie: `<g ${a}><rect x="12" y="22" width="30" height="20" rx="3" fill="#FFFCF6"/><path d="M12 22l28-8 2 6-28 8z" fill="#F6D27A"/>
+      <path d="M20 19.6l3 5M28 17.3l3 5" fill="none" stroke-width="2.5"/><path d="M23 29l8 4-8 4z" fill="${INK}" stroke-width="1.5"/></g>`,
+    gift: `<g ${a}><rect x="13" y="24" width="28" height="17" rx="3" fill="#FFFCF6"/><rect x="11" y="18" width="32" height="7" rx="2" fill="#F6D27A"/>
+      <path d="M27 18v23" fill="none"/><path d="M27 18c-3-6-10-6-9-1 1 3 6 1 9 1zM27 18c3-6 10-6 9-1-1 3-6 1-9 1z" fill="#B9DAA5"/></g>`,
+    other: `<g ${a}><path d="M13 20a3 3 0 0 1 3-3h22a3 3 0 0 1 3 3v3a4 4 0 0 0 0 8v3a3 3 0 0 1-3 3H16a3 3 0 0 1-3-3v-3a4 4 0 0 0 0-8z" fill="#FFFCF6"/>
+      <path d="M22 18v18" fill="none" stroke-width="2" stroke-dasharray="1 4"/><path d="M31 22l1.6 3.4 3.6.4-2.7 2.5.8 3.6-3.3-1.9-3.3 1.9.8-3.6-2.7-2.5 3.6-.4z" fill="#F2A497" stroke-width="2"/></g>`,
+  }[c] || '';
+  return `<svg viewBox="0 0 54 54" aria-hidden="true"><circle cx="27" cy="27" r="24.5" fill="${CAT_BG[c] || CAT_BG.other}" stroke="${INK}" stroke-width="3"/>
+    <g stroke="${INK}" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">${body}</g></svg>`;
+}
+// 和 App 圖示同一隻票夾吉祥物
+function mascotSVG(cls = 'mascot') {
+  return `<svg class="${cls}" viewBox="150 150 724 724" aria-hidden="true">
+  <g class="anim-float"><g transform="rotate(-7 512 340)">
+    <path d="M318 180H706Q742 180 742 216V298A42 42 0 0 0 742 382V464Q742 500 706 500H318Q282 500 282 464V382A42 42 0 0 0 282 298V216Q282 180 318 180Z" fill="#F2A497" stroke="${INK}" stroke-width="28" stroke-linejoin="round"/>
+    <line x1="400" y1="222" x2="400" y2="458" stroke="${INK}" stroke-width="16" stroke-linecap="round" stroke-dasharray="1 38"/>
+    <path d="M572 248L590 290 636 294 601 324 612 369 572 345 532 369 543 324 508 294 554 290Z" fill="#FFFCF6" stroke="${INK}" stroke-width="14" stroke-linejoin="round"/>
+  </g></g>
+  <rect x="212" y="450" width="600" height="360" rx="64" fill="#FFFCF6" stroke="${INK}" stroke-width="28"/>
+  <line x1="268" y1="530" x2="756" y2="530" stroke="${INK}" stroke-width="12" stroke-linecap="round" stroke-dasharray="22 26"/>
+  <g class="anim-blink"><circle cx="440" cy="650" r="17" fill="${INK}"/><circle cx="584" cy="650" r="17" fill="${INK}"/></g>
+  <path d="M482 690Q512 718 542 690" fill="none" stroke="${INK}" stroke-width="14" stroke-linecap="round"/>
+  <ellipse cx="392" cy="700" rx="30" ry="18" fill="#F2A497"/><ellipse cx="632" cy="700" rx="30" ry="18" fill="#F2A497"/>
+  <path d="M300 770Q300 720 346 712Q350 760 300 770Z" fill="#B9DAA5" stroke="${INK}" stroke-width="12" stroke-linejoin="round"/>
+  <g class="anim-wiggle"><circle cx="748" cy="262" r="84" fill="#A8D3E6" stroke="${INK}" stroke-width="24"/>
+    <path d="M714 296C714 254 718 226 748 226C778 226 782 254 782 296Z" fill="#FFFCF6" stroke="${INK}" stroke-width="14" stroke-linejoin="round"/>
+    <line x1="704" y1="298" x2="792" y2="298" stroke="${INK}" stroke-width="14" stroke-linecap="round"/>
+    <circle cx="748" cy="312" r="11" fill="${INK}"/></g>
+</svg>`;
+}
+const ICON = {
+  upload: `<svg viewBox="0 0 34 34"><rect x="4" y="7" width="26" height="21" rx="5" fill="#A8D3E6" stroke="${INK}" stroke-width="3"/><path d="M9 24l6-7 4 4 3-3 4 6z" fill="#B9DAA5" stroke="${INK}" stroke-width="2.5" stroke-linejoin="round"/><circle cx="23" cy="13" r="2.5" fill="#F6D27A" stroke="${INK}" stroke-width="2"/></svg>`,
+  camera: `<svg viewBox="0 0 34 34"><rect x="4" y="10" width="26" height="18" rx="5" fill="#F6D27A" stroke="${INK}" stroke-width="3"/><path d="M12 10l2-4h6l2 4" fill="#F6D27A" stroke="${INK}" stroke-width="3" stroke-linejoin="round"/><circle cx="17" cy="19" r="5" fill="#FFFCF6" stroke="${INK}" stroke-width="3"/></svg>`,
+  paste: `<svg viewBox="0 0 34 34"><rect x="7" y="7" width="20" height="24" rx="4" fill="#B9DAA5" stroke="${INK}" stroke-width="3"/><rect x="12" y="4" width="10" height="6" rx="2" fill="#FFFCF6" stroke="${INK}" stroke-width="3"/><path d="M12 18h10M12 24h7" stroke="${INK}" stroke-width="3" stroke-linecap="round"/></svg>`,
+  ai: `<svg viewBox="0 0 34 34"><path d="M17 4l3 8 8 3-8 3-3 8-3-8-8-3 8-3z" fill="#F2A497" stroke="${INK}" stroke-width="3" stroke-linejoin="round"/><circle cx="27" cy="27" r="3" fill="#F6D27A" stroke="${INK}" stroke-width="2"/></svg>`,
+  bell: `<svg width="26" height="26" viewBox="0 0 26 26"><path d="M7 18c0-6 1-10 6-10s6 4 6 10z" fill="#FFFCF6" stroke="${INK}" stroke-width="2.5" stroke-linejoin="round"/><path d="M5 18h16" stroke="${INK}" stroke-width="2.5" stroke-linecap="round"/><circle cx="13" cy="21" r="2" fill="${INK}"/></svg>`,
+};
+
+/* ---------- 對話框、提示 ---------- */
+function toast(msg, action) {
+  const el = document.createElement('div');
+  el.className = 'toast'; el.setAttribute('role', 'status');
+  el.innerHTML = `<span>${esc(msg)}</span>`;
+  if (action) {
+    const b = document.createElement('button'); b.className = 'btn small plain'; b.textContent = action.label;
+    b.onclick = () => { el.remove(); action.fn(); }; el.appendChild(b);
+  }
+  document.querySelectorAll('.toast').forEach(t => t.remove());
+  document.body.appendChild(el);
+  setTimeout(() => el.remove(), action ? 5000 : 2600);
+}
+function ask(msg, okText = '確定', danger = false) {
+  return new Promise(res => {
+    const m = document.createElement('div');
+    m.className = 'modal';
+    m.innerHTML = `<div class="card" role="dialog" aria-modal="true"><p>${esc(msg)}</p>
+      <div class="row"><button class="btn plain grow" data-v="0">取消</button><button class="btn ${danger ? 'coral' : ''} grow" data-v="1">${esc(okText)}</button></div></div>`;
+    m.addEventListener('click', e => {
+      const b = e.target.closest('[data-v]');
+      if (b || e.target === m) { m.remove(); res(!!(b && b.dataset.v === '1')); }
+    });
+    $('#layer').appendChild(m);
+    m.querySelector('[data-v="1"]').focus();
+  });
+}
+async function copyText(text, label) {
+  try { await navigator.clipboard.writeText(text); toast(`已複製${label}`); }
+  catch { toast(`無法自動複製，請長按文字複製`); }
+}
+
+/* ---------- 路由（#home、#add、#t-<id>、#edit-<id>） ---------- */
+const app = $('#app');
+async function route() {
+  closeViewer();
+  const h = location.hash.slice(1) || 'home';
+  $('#fab').classList.toggle('hidden', h !== 'home');
+  window.scrollTo(0, 0);
+  if (h === 'add') return renderForm(null);
+  if (h.startsWith('edit-')) return renderForm(h.slice(5));
+  if (h.startsWith('t-')) return renderDetail(h.slice(2));
+  return renderHome();
+}
+window.addEventListener('hashchange', route);
+const go = h => { if (location.hash.slice(1) === h) route(); else location.hash = h; };
+
+/* =========================================================
+   首頁
+   ========================================================= */
+function renderHome(noAnim) {
+  const q = S.q.trim().toLowerCase();
+  let list = S.tickets;
+  if (q) list = list.filter(t => [t.title, platName(t), catName(t.category), t.order_no, t.note].join(' ').toLowerCase().includes(q));
+  const active = list.filter(t => t.status !== 'used');
+  const expired = active.filter(isExpired).sort(byExpiry);
+  const valid = active.filter(t => !isExpired(t)).sort(byExpiry);
+  const soon = valid.filter(t => { const d = daysLeft(t); return d !== null && d <= 7; });
+  const used = list.filter(t => t.status === 'used').sort((a, b) => (b.used_at || '').localeCompare(a.used_at || ''));
+
+  const groupCount = new Map();
+  for (const t of S.tickets) if (t.status !== 'used' && !isExpired(t)) groupCount.set(groupKey(t), (groupCount.get(groupKey(t)) || 0) + 1);
+
+  let i = 0;
+  const cards = arr => arr.map(t => cardHTML(t, i++, groupCount.get(groupKey(t)) || 0)).join('');
+  let body = '';
+  if (S.tab === 'active') {
+    if (expired.length) body += `<div class="sec">已過期・待處理 <small>已用掉就標記，還沒用可回平台確認</small></div><div class="list">${cards(expired)}</div>`;
+    if (valid.length) body += `${expired.length ? '<div class="sec">有效票券 <small>越快到期越上面</small></div>' : ''}<div class="list">${cards(valid)}</div>`;
+    if (!expired.length && !valid.length) body = emptyHTML(q ? '找不到符合的票券' : '還沒有票券，點右下角的 ＋ 新增第一張吧！');
+  } else if (S.tab === 'soon') {
+    body = soon.length ? `<div class="list">${cards(soon)}</div>` : emptyHTML('7 天內沒有要到期的票券，安心～');
+  } else {
+    body = used.length ? `<div class="list">${cards(used)}</div>` : emptyHTML('還沒有已使用的票券');
+  }
+
+  const soonAll = S.tickets.filter(t => t.status !== 'used' && !isExpired(t) && daysLeft(t) !== null && daysLeft(t) <= 7).length;
+  const expAll = S.tickets.filter(t => t.status !== 'used' && isExpired(t)).length;
+  const banner = (S.tab === 'active' && (soonAll || expAll))
+    ? `<div class="banner ${soonAll && S.tickets.some(t => t.status !== 'used' && !isExpired(t) && daysLeft(t) !== null && daysLeft(t) <= 3) ? 'coral' : ''}" id="bannerSoon" role="button" tabindex="0">${ICON.bell}
+        <span>${soonAll ? `有 ${soonAll} 張票券 7 天內到期，記得使用喔！` : ''}${soonAll && expAll ? '<br>' : ''}${expAll ? `${expAll} 張已過期待處理` : ''}</span></div>` : '';
+
+  const storageWarn = DB.mode === 'memory';
+  app.innerHTML = `
+  <header class="top">${mascotSVG()}
+    <div class="grow"><h1>券券日記</h1>
+      <span class="status ${storageWarn ? 'warn' : ''}"><i></i>${storageWarn ? '暫存模式・關閉後資料會消失' : '本機模式・尚未連接雲端'}</span></div>
+  </header>
+  <input class="search" id="q" type="search" placeholder="搜尋名稱、平台、訂單編號…" value="${esc(S.q)}" aria-label="搜尋票券">
+  <nav class="tabs" role="tablist">
+    ${[['active','有效',active.length],['soon','即將到期',soon.length],['used','已使用',used.length]].map(([k,n,c]) =>
+      `<button role="tab" data-tab="${k}" class="${S.tab === k ? 'on' : ''}" aria-selected="${S.tab === k}">${n}<span class="n">${c}</span></button>`).join('')}
+  </nav>
+  ${banner}
+  <div id="listArea" class="${noAnim ? '' : 'bounce'}">${body}</div>
+  <div class="foot">
+    <b>資料保存提醒</b><br>
+    ${storageWarn
+      ? '這個環境不允許保存資料（例如在預覽框裡開啟），重新整理後資料會消失。請部署到正式網址後再開始記錄。'
+      : '目前資料只存在這台裝置的瀏覽器。iPhone 請「加入主畫面」，可降低資料被系統清除的機率。雲端同步（階段二）與 ZIP 備份（階段四）完成前，請不要清除瀏覽器資料。'}
+    <div id="usage" class="muted"></div>
+  </div>`;
+
+  $('#q').addEventListener('input', e => { S.q = e.target.value; const pos = e.target.selectionStart; renderHome(true); const n = $('#q'); n.focus(); try { n.setSelectionRange(pos, pos); } catch {} });
+  app.querySelectorAll('[data-tab]').forEach(b => b.onclick = () => { S.tab = b.dataset.tab; renderHome(); });
+  const bn = $('#bannerSoon'); if (bn) bn.onclick = () => { S.tab = 'soon'; renderHome(); };
+  showUsage();
+}
+function cardHTML(t, i, gcount) {
+  const d = daysLeft(t), exp = isExpired(t), used = t.status === 'used';
+  let cls = 'd-ok', txt;
+  if (used) { cls = 'd-used'; txt = '已使用'; }
+  else if (d === null) { cls = 'd-none'; txt = '無期限'; }
+  else if (exp) { cls = 'd-exp'; txt = d < 0 ? `過期<br>${-d} 天` : '已過期'; }
+  else if (d === 0) { cls = 'd-urgent'; txt = '今天<br>到期'; }
+  else if (d <= 3) { cls = 'd-urgent'; txt = `剩 ${d} 天`; }
+  else if (d <= 7) { cls = 'd-soon'; txt = `剩 ${d} 天`; }
+  else txt = `剩 ${d} 天`;
+  const imgs = imagesOf(t.id);
+  const hasCode = imgs.some(x => isCode(x.kind));
+  const batch = t.batch_total > 1 ? `<span class="chip mizu">第 ${t.batch_index}/${t.batch_total} 張</span>`
+              : (gcount > 1 && !used ? `<span class="chip mizu">同商品 ${gcount} 張</span>` : '');
+  return `<a class="card tcard ${used ? 'is-used' : ''} ${exp && !used ? 'is-exp' : ''}" href="#t-${t.id}" style="--i:${i}">
+    <span class="cat">${catSVG(t.category)}</span>
+    <span style="min-width:0"><b class="ttl">${esc(t.title)}</b>
+      <span class="meta"><span class="chip">${esc(platName(t))}</span>${batch}${hasCode ? '<span class="chip take">QR</span>' : ''}</span>
+      <span class="date">${t.expires_on ? '到期 ' + fmtDate(t.expires_on) + (t.expires_time ? ' ' + t.expires_time : '') : '未設定期限'}</span></span>
+    <span class="dpill ${cls}">${txt}</span></a>`;
+}
+function emptyHTML(msg) { return `<div class="empty">${mascotSVG('')}<p>${esc(msg)}</p></div>`; }
+async function showUsage() {
+  try {
+    if (!navigator.storage || !navigator.storage.estimate) return;
+    const e = await navigator.storage.estimate();
+    const persisted = navigator.storage.persisted ? await navigator.storage.persisted() : false;
+    const el = $('#usage'); if (!el) return;
+    el.textContent = `已使用約 ${(e.usage / 1048576).toFixed(1)} MB${persisted ? '・已申請持久保存' : ''}`;
+  } catch {}
+}
+
+/* =========================================================
+   新增／編輯
+   ========================================================= */
+async function renderForm(editId) {
+  const t = editId ? S.tickets.find(x => x.id === editId) : null;
+  if (editId && !t) return renderMissing();
+  const p = t || S.prefill || {};
+  S.prefill = null;
+  // 草稿圖片：已存在的圖片帶 existingId；新圖片帶 file
+  const imgs = [];
+  if (t) for (const r of imagesOf(t.id)) imgs.push({ k: uuid(), existingId: r.id, hash: r.hash, kind: r.kind, primary: !!r.is_primary, url: await blobUrl(r.hash) });
+  S.draft = { editId, mode: 'single', images: imgs };
+  const reminders = p.reminders || [1, 7];
+  const custom = reminders.filter(n => !REMIND_PRESETS.some(([d]) => d === n));
+
+  app.innerHTML = `
+  <div class="bar"><button class="iconbtn" id="back" aria-label="返回">‹</button><h2>${t ? '編輯票券' : '新增票券'}</h2></div>
+
+  <section class="card panel">
+    <h3>${t ? '票券圖片' : '加入截圖'}</h3>
+    <div class="ways">
+      <label class="way">${ICON.upload}上傳截圖<input id="fUpload" type="file" accept="image/*" multiple aria-label="上傳截圖"></label>
+      <label class="way">${ICON.camera}拍照新增<input id="fCamera" type="file" accept="image/*" capture="environment" aria-label="拍照新增"></label>
+      <button type="button" class="way" id="btnPaste">${ICON.paste}貼上圖片</button>
+      <div class="way off" aria-disabled="true">${ICON.ai}AI 自動辨識<span class="chip yellow soon">階段三</span></div>
+    </div>
+    <div id="pasteBox" class="pastebox hidden" contenteditable="true" aria-label="貼上區">長按這裡 →「貼上」<br><span class="muted">或改用上傳截圖</span></div>
+    <div class="imgs" id="imgList"></div>
+    <p class="hint">原圖不壓縮、不裁切，保留 QR Code 掃描品質。☆ 指定主要展示圖片。</p>
+  </section>
+
+  <form id="form" autocomplete="off" novalidate>
+    ${t ? '' : `<section class="card panel">
+      <h3>張數</h3>
+      <div class="seg">
+        <label><input type="radio" name="mode" value="single" checked><span>單張票券</span></label>
+        <label><input type="radio" name="mode" value="multi"><span>多張（每張不同 QR）</span></label>
+      </div>
+      <div id="multiBox" class="hidden" style="margin-top:12px">
+        <p class="hint" id="multiHint"></p>
+        <label class="field" id="countField"><span>張數（還沒有 QR 圖片時）</span><input name="count" type="number" min="2" max="50" inputmode="numeric" value="${p.batch_total > 1 ? p.batch_total : 2}"></label>
+      </div>
+    </section>`}
+
+    <section class="card panel">
+      <h3>票券資訊</h3>
+      <label class="field"><span>名稱 *</span><input name="title" required maxlength="80" placeholder="例如：星巴克中杯拿鐵" value="${esc(p.title)}"></label>
+      <div class="two">
+        <label class="field"><span>購買平台</span><select name="platform" id="selPlat">${PLATFORMS.map(x => `<option value="${x.id}" ${x.id === (p.platform || 'momo') ? 'selected' : ''}>${x.name}</option>`).join('')}</select></label>
+        <label class="field"><span>分類</span><select name="category">${CATS.map(([k, n]) => `<option value="${k}" ${k === (p.category || 'coffee') ? 'selected' : ''}>${n}</option>`).join('')}</select></label>
+      </div>
+      <label class="field ${p.platform === 'other' ? '' : 'hidden'}" id="platNameField"><span>平台名稱</span><input name="platform_name" maxlength="40" placeholder="例如：全家行動購" value="${esc(p.platform_name)}"></label>
+      <div class="two">
+        <label class="field"><span>有效期限</span><input name="expires_on" type="date" value="${esc(p.expires_on || '')}"></label>
+        <label class="field"><span>到期時間（選填）</span><input name="expires_time" type="time" value="${esc(p.expires_time || '')}"></label>
+      </div>
+      <p class="hint" style="margin-top:-6px;margin-bottom:12px">沒寫時間就留空，App 不會自己假設 23:59。</p>
+      <label class="field"><span>面額／內容（選填）</span><input name="value" maxlength="40" placeholder="例如：NT$150、中杯飲品" value="${esc(p.value)}"></label>
+    </section>
+
+    <section class="card panel">
+      <h3>購買來源</h3>
+      <label class="field"><span>訂單編號</span><input name="order_no" maxlength="60" value="${esc(p.order_no)}"></label>
+      <label class="field"><span>原始票券網址</span><input name="original_url" type="url" inputmode="url" placeholder="https://" value="${esc(p.original_url)}"></label>
+      <label class="field"><span>訂單網址</span><input name="order_url" type="url" inputmode="url" placeholder="https://" value="${esc(p.order_url)}"></label>
+      <label class="field"><span>兌換碼／序號（選填）</span><input name="redeem_code" maxlength="80" autocomplete="off" value="${esc(p.redeem_code)}"></label>
+      <p class="hint">QR 失效時，可以從詳細頁快速回到購買平台。兌換碼只存在你的裝置。</p>
+    </section>
+
+    <section class="card panel">
+      <h3>到期提醒</h3>
+      <div class="seg">${REMIND_PRESETS.map(([d, n]) => `<label><input type="checkbox" name="rem" value="${d}" ${reminders.includes(d) ? 'checked' : ''}><span>${n}</span></label>`).join('')}</div>
+      <div class="two" style="margin-top:12px">
+        <label class="field"><span>自訂提前天數</span><input name="rem_custom" inputmode="numeric" placeholder="例如：30, 60" value="${esc(custom.join(', '))}"></label>
+        <label class="field"><span>提醒時間</span><select name="remind_time">${Array.from({ length: 17 }, (_, i) => { const h = String(i + 6).padStart(2, '0') + ':00'; return `<option ${h === (p.remind_time || '09:00') ? 'selected' : ''}>${h}</option>`; }).join('')}</select></label>
+      </div>
+      <p class="hint">時間以整點為單位（台北時間）。背景推播會在階段四啟用，目前先在首頁顯示到期提醒。</p>
+    </section>
+
+    <section class="card panel">
+      <label class="field" style="margin:0"><span>備註</span><textarea name="note" maxlength="500" placeholder="使用限制、適用門市…">${esc(p.note)}</textarea></label>
+    </section>
+
+    <div class="savebar"><button type="submit" class="btn coral" id="btnSave">儲存票券</button></div>
+  </form>`;
+
+  $('#back').onclick = () => history.length > 1 ? history.back() : go('home');
+  $('#selPlat').onchange = e => $('#platNameField').classList.toggle('hidden', e.target.value !== 'other');
+  $('#fUpload').onchange = e => { addFiles([...e.target.files]); e.target.value = ''; };
+  $('#fCamera').onchange = e => { addFiles([...e.target.files]); e.target.value = ''; };
+  $('#btnPaste').onclick = pasteFromClipboard;
+  app.querySelectorAll('input[name="mode"]').forEach(r => r.onchange = () => {
+    S.draft.mode = r.value;
+    if (r.value === 'multi') S.draft.images.forEach(im => { if (im.kind === 'info' && !im.touched) im.kind = 'qr'; });
+    drawImages();
+  });
+  $('#form').addEventListener('submit', e => { e.preventDefault(); saveDraft(e.target); });
+  drawImages();
+}
+
+function drawImages() {
+  const d = S.draft;
+  const box = $('#imgList'); if (!box) return;
+  if (!d.images.some(x => x.primary) && d.images.length) {
+    (d.images.find(x => isCode(x.kind)) || d.images[0]).primary = true;
+  }
+  box.innerHTML = d.images.map((im, i) => `
+    <div class="imgrow" data-k="${im.k}">
+      <img src="${im.url}" alt="${kindName(im.kind)}">
+      <div class="ctrl">
+        <select data-act="kind" aria-label="圖片類型">${KINDS.map(([k, n]) => `<option value="${k}" ${k === im.kind ? 'selected' : ''}>${n}</option>`).join('')}</select>
+        <button type="button" class="iconbtn ${im.primary ? 'on' : ''}" data-act="primary" aria-label="設為主要圖片">${im.primary ? '★' : '☆'}</button>
+        <button type="button" class="iconbtn" data-act="up" aria-label="往前" ${i === 0 ? 'disabled' : ''}>↑</button>
+        <button type="button" class="iconbtn" data-act="down" aria-label="往後" ${i === d.images.length - 1 ? 'disabled' : ''}>↓</button>
+        <button type="button" class="iconbtn" data-act="del" aria-label="移除">✕</button>
+      </div>
+    </div>`).join('');
+  box.querySelectorAll('[data-act]').forEach(el => {
+    const k = el.closest('[data-k]').dataset.k;
+    const idx = d.images.findIndex(x => x.k === k);
+    const im = d.images[idx];
+    const act = el.dataset.act;
+    if (act === 'kind') el.onchange = () => { im.kind = el.value; im.touched = true; drawImages(); };
+    else el.onclick = async () => {
+      if (act === 'primary') { d.images.forEach(x => x.primary = false); im.primary = true; }
+      if (act === 'up' && idx > 0) [d.images[idx - 1], d.images[idx]] = [d.images[idx], d.images[idx - 1]];
+      if (act === 'down' && idx < d.images.length - 1) [d.images[idx + 1], d.images[idx]] = [d.images[idx], d.images[idx + 1]];
+      if (act === 'del') {
+        if (im.existingId) {
+          const others = S.images.filter(x => x.hash === im.hash && x.ticket_id !== d.editId).length;
+          const ok = await ask(others
+            ? `這張圖片也被其他 ${others} 張票券使用。\n只會從這張票券移除，其他票券不受影響。`
+            : '確定移除這張圖片嗎？\n按「儲存票券」後才會真正刪除。', '移除', true);
+          if (!ok) return;
+        }
+        d.images.splice(idx, 1);
+      }
+      drawImages();
+    };
+  });
+  // 多張模式說明
+  const mh = $('#multiHint');
+  if (mh) {
+    const n = d.images.filter(x => isCode(x.kind)).length;
+    $('#multiBox').classList.toggle('hidden', d.mode !== 'multi');
+    $('#countField').classList.toggle('hidden', n >= 2);
+    mh.textContent = n >= 2
+      ? `會建立 ${n} 張獨立票券，每張各自一張 QR／條碼，可以分別標記已使用。其他類型的圖片（票券資訊、使用說明）會共用。`
+      : '每一張 QR Code 或條碼圖片會變成一張獨立票券。還沒有圖片的話，可以先填張數，之後再到各張票券補上 QR。';
+  }
+}
+
+function addFiles(files) {
+  const imgs = files.filter(f => f && ((f.type && f.type.startsWith('image/')) || (!f.type && /\.(jpe?g|png|gif|webp|heic|heif|bmp)$/i.test(f.name || ''))));
+  if (!imgs.length) return toast('沒有找到圖片檔');
+  for (const f of imgs) {
+    S.draft.images.push({ k: uuid(), file: f, kind: S.draft.mode === 'multi' ? 'qr' : (S.draft.images.length ? 'qr' : 'info'), primary: false, url: URL.createObjectURL(f) });
+  }
+  drawImages();
+  toast(`已加入 ${imgs.length} 張圖片，請確認圖片類型`);
+}
+async function pasteFromClipboard() {
+  try {
+    if (!navigator.clipboard || !navigator.clipboard.read) throw new Error('unsupported');
+    const items = await navigator.clipboard.read();
+    const files = [];
+    let text = '';
+    for (const it of items) {
+      const type = it.types.find(t => t.startsWith('image/'));
+      if (type) { const b = await it.getType(type); files.push(new File([b], 'paste.' + type.split('/')[1], { type })); }
+      else if (it.types.includes('text/plain')) text = await (await it.getType('text/plain')).text();
+    }
+    if (files.length) return addFiles(files);
+    if (text) return handlePastedText(text);
+    toast('剪貼簿裡沒有圖片');
+  } catch {
+    // 瀏覽器不允許直接讀取：改用系統的「貼上」選單
+    const box = $('#pasteBox');
+    box.classList.remove('hidden');
+    box.focus();
+    toast('請在虛線框長按並選「貼上」');
+  }
+}
+function handlePastedText(text) {
+  const url = safeUrl((text.match(/https?:\/\/\S+/) || [])[0]);
+  const f = $('#form'); if (!f) return;
+  if (url && !f.original_url.value) { f.original_url.value = url; toast('已填入原始票券網址'); }
+  else if (!f.note.value) { f.note.value = text.slice(0, 500); toast('已貼到備註，請手動整理'); }
+}
+// 系統「貼上」：任何時候在新增頁按下貼上都會收進來
+document.addEventListener('paste', e => {
+  if (!S.draft || !$('#form')) return;
+  const files = [...(e.clipboardData?.files || [])].filter(f => f.type.startsWith('image/'));
+  const inBox = e.target.closest && e.target.closest('#pasteBox');
+  if (files.length) { e.preventDefault(); addFiles(files); $('#pasteBox').classList.add('hidden'); return; }
+  if (inBox) {
+    e.preventDefault();
+    const text = e.clipboardData?.getData('text/plain');
+    if (text) handlePastedText(text); else toast('剪貼簿裡沒有圖片，請改用上傳截圖');
+    $('#pasteBox').classList.add('hidden');
+  }
+});
+
+async function saveDraft(form) {
+  const btn = $('#btnSave');
+  const fd = new FormData(form);
+  const v = k => (fd.get(k) || '').toString().trim();
+  const d = S.draft;
+  const title = v('title');
+  if (!title) { form.title.focus(); return toast('請填寫票券名稱'); }
+  for (const k of ['original_url', 'order_url']) if (v(k) && !safeUrl(v(k))) { form[k].focus(); return toast('網址需要以 https:// 開頭'); }
+  const reminders = [...new Set([...fd.getAll('rem').map(Number),
+    ...v('rem_custom').split(/[,\s，、]+/).map(Number).filter(n => Number.isInteger(n) && n > 0 && n <= 365)])].sort((a, b) => a - b);
+  const base = {
+    title, platform: v('platform'), platform_name: v('platform') === 'other' ? v('platform_name') : '',
+    category: v('category'), expires_on: v('expires_on') || null, expires_time: v('expires_time') || null,
+    value: v('value'), order_no: v('order_no'), original_url: v('original_url'), order_url: v('order_url'),
+    redeem_code: v('redeem_code'), note: v('note'), reminders, remind_time: v('remind_time') || '09:00', timezone: TZ,
+  };
+
+  const codes = d.images.filter(x => isCode(x.kind));
+  if (!d.editId && d.mode === 'multi') {
+    if (codes.length === 1) return toast('多張模式需要 2 張以上 QR／條碼圖片，或改成單張');
+    if (codes.length === 0) { const c = parseInt(v('count'), 10); if (!(c >= 2 && c <= 50)) return toast('張數請填 2～50'); }
+  }
+
+  btn.disabled = true; btn.textContent = '儲存中…';
+  try {
+    const now = nowISO();
+    const ops = [];
+    // 圖片：用 SHA-256 去重，相同檔案只存一份
+    for (const im of d.images) if (!im.hash) im.hash = await sha256(im.file);
+    const added = new Set();
+    for (const im of d.images) {
+      if (!im.file || added.has(im.hash)) continue;
+      added.add(im.hash);
+      if (!(await get('blobs', im.hash))) ops.push({ store: 'blobs', value: { hash: im.hash, data: await im.file.arrayBuffer(), type: im.file.type || 'image/jpeg', size: im.file.size, created_at: now } });
+    }
+    const imgRec = (ticketId, im, sort, primary) => ({ id: uuid(), ticket_id: ticketId, hash: im.hash, kind: im.kind, sort, is_primary: primary, created_at: now, updated_at: now, version: 1, deleted_at: null });
+    const newTicket = extra => ({ id: uuid(), ...base, ticket_type: 'single', batch_id: null, batch_index: 1, batch_total: 1, status: 'active', used_at: null, created_at: now, updated_at: now, version: 1, deleted_at: null, ...extra });
+
+    let goTo = 'home', msg = '已儲存';
+    let removedHashes = [];
+    if (d.editId) {
+      const old = S.tickets.find(x => x.id === d.editId);
+      ops.push({ store: 'tickets', value: { ...old, ...base, updated_at: now, version: (old.version || 1) + 1 } }, queueOp('tickets', old.id, 'update'));
+      const existing = imagesOf(old.id);
+      const keep = new Set(d.images.filter(x => x.existingId).map(x => x.existingId));
+      for (const r of existing) if (!keep.has(r.id)) {
+        ops.push({ store: 'ticket_images', value: { ...r, deleted_at: now, updated_at: now, version: (r.version || 1) + 1 } }, queueOp('ticket_images', r.id, 'delete'));
+        removedHashes.push(r.hash);
+      }
+      d.images.forEach((im, i) => {
+        if (im.existingId) {
+          const r = existing.find(x => x.id === im.existingId);
+          if (r.kind !== im.kind || r.sort !== i || !!r.is_primary !== im.primary) {
+            ops.push({ store: 'ticket_images', value: { ...r, kind: im.kind, sort: i, is_primary: im.primary, updated_at: now, version: (r.version || 1) + 1 } }, queueOp('ticket_images', r.id, 'update'));
+          }
+        } else {
+          const r = imgRec(old.id, im, i, im.primary);
+          ops.push({ store: 'ticket_images', value: r }, queueOp('ticket_images', r.id, 'insert'));
+        }
+      });
+      goTo = 't-' + old.id;
+    } else if (d.mode === 'multi') {
+      const shared = d.images.filter(x => !isCode(x.kind));
+      const n = codes.length >= 2 ? codes.length : parseInt(v('count'), 10);
+      const batch = uuid();
+      for (let i = 0; i < n; i++) {
+        const t = newTicket({ ticket_type: 'multi', batch_id: batch, batch_index: i + 1, batch_total: n });
+        ops.push({ store: 'tickets', value: t }, queueOp('tickets', t.id, 'insert'));
+        const list = codes[i] ? [codes[i], ...shared] : shared;
+        list.forEach((im, j) => {
+          const r = imgRec(t.id, im, j, j === 0 ? true : false);
+          ops.push({ store: 'ticket_images', value: r }, queueOp('ticket_images', r.id, 'insert'));
+        });
+      }
+      msg = `已建立 ${n} 張獨立票券`;
+    } else {
+      const t = newTicket({});
+      ops.push({ store: 'tickets', value: t }, queueOp('tickets', t.id, 'insert'));
+      d.images.forEach((im, i) => {
+        const r = imgRec(t.id, im, i, im.primary);
+        ops.push({ store: 'ticket_images', value: r }, queueOp('ticket_images', r.id, 'insert'));
+      });
+      goTo = 't-' + t.id;
+    }
+    try {
+      await write(ops);              // 先安全寫進本機，才離開這頁
+    } catch (e) {
+      // 這個環境不讓存（例如在預覽框、無痕模式或空間不足）：改用暫存模式，至少這次操作不會失敗
+      if (DB.mode !== 'idb') throw e;
+      console.warn('IndexedDB 寫入失敗，改用暫存模式', e);
+      await fallbackToMemory();
+      await write(ops);
+      msg += '（此環境無法永久保存，已改用暫存模式）';
+    }
+    await load();
+    await gcBlobs(removedHashes);
+    S.draft = null;
+    toast(msg);
+    history.replaceState(null, '', '#' + goTo);
+    route();
+  } catch (err) {
+    console.error(err);
+    btn.disabled = false; btn.textContent = '儲存票券';
+    toast('儲存失敗：' + ((err && (err.name || err.message)) || '未知錯誤') + '，請截圖這個訊息給我');
+  }
+}
+// 只有在完全沒有任何票券引用時，才刪除圖片檔案
+async function gcBlobs(hashes) {
+  if (!hashes.length) return;
+  const live = (await all('ticket_images')).filter(i => !i.deleted_at);
+  const ops = [];
+  for (const h of new Set(hashes)) if (!live.some(i => i.hash === h)) { ops.push({ store: 'blobs', del: h }); urlCache.delete(h); }
+  await write(ops);
+}
+
+/* =========================================================
+   詳細頁
+   ========================================================= */
+function renderMissing() {
+  app.innerHTML = `<div class="bar"><button class="iconbtn" onclick="go('home')" aria-label="返回">‹</button><h2>找不到票券</h2></div>${emptyHTML('這張票券可能已經刪除了')}`;
+}
+async function renderDetail(id) {
+  const t = S.tickets.find(x => x.id === id);
+  if (!t) return renderMissing();
+  const imgs = imagesOf(id);
+  const ordered = [...imgs.filter(x => x.is_primary), ...imgs.filter(x => !x.is_primary)];
+  const urls = await Promise.all(ordered.map(x => blobUrl(x.hash)));
+  const d = daysLeft(t), exp = isExpired(t), used = t.status === 'used';
+  const statusChip = used ? `<span class="chip">已使用 ${t.used_at ? fmtDate(fmtDay.format(new Date(t.used_at))) : ''}</span>`
+    : d === null ? '<span class="chip">無期限</span>'
+    : exp ? '<span class="chip coral">已過期</span>'
+    : d === 0 ? '<span class="chip coral">今天到期</span>'
+    : `<span class="chip ${d <= 3 ? 'coral' : d <= 7 ? 'yellow' : 'take'}">還有 ${d} 天</span>`;
+  const ou = safeUrl(t.original_url), du = safeUrl(t.order_url), home = platOf(t).home;
+  const siblings = t.batch_id ? S.tickets.filter(x => x.batch_id === t.batch_id).sort((a, b) => a.batch_index - b.batch_index) : [];
+  const mask = s => s.length <= 4 ? '••••' : '•'.repeat(Math.min(8, s.length - 4)) + s.slice(-4);
+
+  app.innerHTML = `
+  <div class="bar"><button class="iconbtn" id="back" aria-label="返回">‹</button><h2>票券內容</h2>
+    <a class="btn small plain" href="#edit-${t.id}">編輯</a></div>
+
+  <section class="card hero"><span class="cat">${catSVG(t.category, true)}</span>
+    <div class="grow"><h2>${esc(t.title)}</h2>
+      <div class="meta"><span class="chip">${esc(platName(t))}</span>${statusChip}${t.batch_total > 1 ? `<span class="chip mizu">第 ${t.batch_index}/${t.batch_total} 張</span>` : ''}</div></div>
+  </section>
+
+  ${ordered.length ? `<div class="carousel" id="car">${ordered.map((im, i) => `
+      <div class="slide" data-i="${i}" role="button" aria-label="查看原圖"><img src="${urls[i]}" alt="${kindName(im.kind)}" loading="lazy">
+        <span class="chip ${isCode(im.kind) ? 'take' : 'yellow'}">${kindName(im.kind)}</span>${im.is_primary ? '<span class="chip star">★ 主要</span>' : ''}</div>`).join('')}</div>
+      <p class="hint" style="margin-top:-2px">點圖片看原圖。掃描前請把螢幕亮度調高。${ordered.length > 1 ? '左右滑動看其他圖片。' : ''}</p>`
+    : `<section class="card panel"><p style="margin:0">還沒有圖片。<a href="#edit-${t.id}">加入 QR Code 截圖</a></p></section>`}
+
+  <section class="card panel">
+    <dl class="kv">
+      <dt>有效期限</dt><dd>${t.expires_on ? fmtDate(t.expires_on) + (t.expires_time ? ' ' + esc(t.expires_time) : '<br><span class="muted">未註明時間，請以票券說明為準</span>') : '未設定'}</dd>
+      ${t.value ? `<dt>面額／內容</dt><dd>${esc(t.value)}</dd>` : ''}
+      <dt>分類</dt><dd>${esc(catName(t.category))}</dd>
+      ${t.order_no ? `<dt>訂單編號</dt><dd><span class="code">${esc(t.order_no)}</span> <button class="btn small plain" id="cpOrder">複製</button></dd>` : ''}
+      ${t.redeem_code ? `<dt>兌換碼</dt><dd><span class="code" id="rc">${esc(mask(t.redeem_code))}</span> <button class="btn small plain" id="showRc">顯示</button> <button class="btn small plain" id="cpRc">複製</button></dd>` : ''}
+      <dt>提醒</dt><dd>${t.reminders && t.reminders.length ? t.reminders.map(n => n === 0 ? '當天' : `前 ${n} 天`).join('、') + `・${esc(t.remind_time)}` : '不提醒'}</dd>
+      ${t.note ? `<dt>備註</dt><dd style="white-space:pre-wrap">${esc(t.note)}</dd>` : ''}
+    </dl>
+  </section>
+
+  <section class="card panel">
+    <h3>QR 失效了嗎？</h3>
+    ${ou ? `<a class="btn coral block" href="${esc(ou)}" target="_blank" rel="noopener noreferrer">前往原始票券</a>`
+         : home ? `<a class="btn plain block" href="${esc(home)}" target="_blank" rel="noopener noreferrer">前往 ${esc(platName(t))}</a>
+                  <p class="hint">沒有存原始票券網址。請到平台的「會員中心 → 我的票券／電子票券」找這張券。</p>`
+         : `<p class="hint">購買平台：${esc(platName(t))}。沒有存原始票券網址，可以在編輯頁補上。</p>`}
+    ${du ? `<a class="btn plain block" style="margin-top:10px" href="${esc(du)}" target="_blank" rel="noopener noreferrer">查看訂單</a>` : ''}
+    <p class="hint">部分平台需要重新登入，原始網址也可能已失效。</p>
+  </section>
+
+  ${siblings.length > 1 ? `<section class="card panel"><h3>同一批的其他票券</h3><div class="list">${siblings.filter(x => x.id !== t.id).map((x, i) => cardHTML(x, i, 0)).join('')}</div></section>` : ''}
+
+  <div class="actions">
+    <button class="btn ${used ? 'plain' : 'take'}" id="toggleUsed">${used ? '恢復成未使用' : '標記已使用'}</button>
+    <button class="btn mizu" id="dup">再加一張同商品</button>
+    <button class="btn plain" id="del" style="grid-column:1/-1">刪除票券</button>
+  </div>`;
+
+  $('#back').onclick = () => go('home');
+  app.querySelectorAll('.slide').forEach(s => s.onclick = () => openViewer(ordered, urls, +s.dataset.i));
+  const cp = $('#cpOrder'); if (cp) cp.onclick = () => copyText(t.order_no, '訂單編號');
+  const cr = $('#cpRc'); if (cr) cr.onclick = () => copyText(t.redeem_code, '兌換碼');
+  const sr = $('#showRc'); if (sr) sr.onclick = () => { const s = $('#rc'); const shown = s.dataset.shown === '1'; s.textContent = shown ? mask(t.redeem_code) : t.redeem_code; s.dataset.shown = shown ? '0' : '1'; sr.textContent = shown ? '顯示' : '隱藏'; };
+  $('#toggleUsed').onclick = () => setUsed(t, !used);
+  $('#dup').onclick = () => {
+    const { id: _, batch_id, batch_index, batch_total, ...rest } = t;
+    S.prefill = { ...rest, batch_total: 1 };
+    go('add');
+  };
+  $('#del').onclick = async () => {
+    if (!(await ask(`確定刪除「${t.title}」嗎？`, '刪除', true))) return;
+    const now = nowISO();
+    await write([{ store: 'tickets', value: { ...t, deleted_at: now, updated_at: now, version: (t.version || 1) + 1 } }, queueOp('tickets', t.id, 'delete')]);
+    await load();
+    go('home');
+    toast('已刪除', { label: '復原', fn: async () => { const cur = await get('tickets', t.id); await write([{ store: 'tickets', value: { ...cur, deleted_at: null, updated_at: nowISO(), version: (cur.version || 1) + 1 } }, queueOp('tickets', t.id, 'update')]); await load(); route(); } });
+  };
+}
+async function setUsed(t, used) {
+  const now = nowISO();
+  const cur = await get('tickets', t.id);
+  await write([{ store: 'tickets', value: { ...cur, status: used ? 'used' : 'active', used_at: used ? now : null, updated_at: now, version: (cur.version || 1) + 1 } }, queueOp('tickets', t.id, 'update')]);
+  await load();
+  route();
+  toast(used ? '已標記使用，之後不會再提醒' : '已恢復成未使用', used ? { label: '復原', fn: () => setUsed(t, false) } : null);
+}
+
+/* ---------- 全螢幕原圖 ---------- */
+function openViewer(list, urls, i) {
+  closeViewer();
+  const v = document.createElement('div');
+  v.className = 'viewer'; v.id = 'viewer'; v.setAttribute('role', 'dialog'); v.setAttribute('aria-modal', 'true');
+  const draw = () => {
+    v.innerHTML = `<div class="vbar"><button class="iconbtn" data-a="x" aria-label="關閉">✕</button>
+        <b class="grow">${kindName(list[i].kind)}</b><button class="btn small plain" data-a="z">放大</button></div>
+      <div class="vimg"><img src="${urls[i]}" alt="${kindName(list[i].kind)} 原圖"></div>
+      <div class="vnav"><button class="iconbtn" data-a="p" ${i === 0 ? 'disabled' : ''} aria-label="上一張">‹</button>
+        <span class="muted">${i + 1} / ${list.length}・請調高螢幕亮度</span>
+        <button class="iconbtn" data-a="n" ${i === list.length - 1 ? 'disabled' : ''} aria-label="下一張">›</button></div>`;
+  };
+  v.addEventListener('click', e => {
+    const a = e.target.closest('[data-a]'); if (!a) return;
+    if (a.dataset.a === 'x') closeViewer();
+    if (a.dataset.a === 'z') { const b = v.querySelector('.vimg'); b.classList.toggle('zoom'); a.textContent = b.classList.contains('zoom') ? '縮小' : '放大'; }
+    if (a.dataset.a === 'p' && i > 0) { i--; draw(); }
+    if (a.dataset.a === 'n' && i < list.length - 1) { i++; draw(); }
+  });
+  let sx = null;
+  v.addEventListener('touchstart', e => { sx = e.touches.length === 1 ? e.touches[0].clientX : null; }, { passive: true });
+  v.addEventListener('touchend', e => {
+    if (sx === null || v.querySelector('.vimg.zoom')) return;
+    const dx = e.changedTouches[0].clientX - sx;
+    if (dx < -60 && i < list.length - 1) { i++; draw(); } else if (dx > 60 && i > 0) { i--; draw(); }
+  });
+  draw();
+  document.body.appendChild(v);
+  document.body.style.overflow = 'hidden';
+}
+function closeViewer() { const v = $('#viewer'); if (v) v.remove(); document.body.style.overflow = ''; }
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeViewer(); });
+
+/* ---------- 啟動 ---------- */
+(async function start() {
+  await openDB();
+  try { await load(); } catch (e) { console.error(e); DB.mode = 'memory'; }
+  route();
+  // 跨午夜時重新計算剩餘天數
+  let lastDay = today();
+  setInterval(() => { if (today() !== lastDay) { lastDay = today(); if (!S.draft) route(); } }, 60000);
+  document.addEventListener('visibilitychange', () => { if (!document.hidden && today() !== lastDay) { lastDay = today(); if (!S.draft) route(); } });
+})();
+</script>
+</body>
+</html>
