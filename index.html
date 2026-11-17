@@ -149,8 +149,8 @@ button,input,select,textarea{font:inherit;color:inherit}
 .busy{text-align:center;padding:6px 0}
 .busy-mascot{width:110px;height:110px}
 .busy p{font-weight:700;margin:6px 0 12px}
-.bar{height:16px;border:var(--bw) solid var(--ink);border-radius:999px;overflow:hidden;background:var(--white)}
-.bar i{display:block;height:100%;width:0;background:var(--coral);transition:width .2s}
+.pbar{height:16px;border:var(--bw) solid var(--ink);border-radius:999px;overflow:hidden;background:var(--white)}
+.pbar i{display:block;height:100%;width:0;background:var(--coral);transition:width .2s}
 .recog{padding:12px 14px;margin:0 0 14px;border:var(--bw) solid var(--ink);border-radius:18px;background:#FFF3C4;box-shadow:0 4px 0 var(--ink)}
 .recog .hint{opacity:.85}
 .warnline{font-weight:700;opacity:1!important}
@@ -1032,7 +1032,7 @@ document.addEventListener('keydown', e => { if (e.key === 'Escape') closeViewer(
 /* =========================================================
    雲端同步：狀態、帳號、衝突
    ========================================================= */
-const APP_VERSION = '階段三 v3.1';
+const APP_VERSION = '階段三 v3.2';
 function loginCard() {
   if (DB.mode === 'memory' || !window.Sync) return '';
   const st = Sync.status.state;
