@@ -5,7 +5,7 @@
    - 推播：顯示到期提醒，點通知打開「即將到期」列表
    - 分享選單：接收其他 App 分享的圖片或網址（支援的裝置才有）
    ========================================================= */
-const VERSION = 'qq-v4.0';
+const VERSION = 'qq-v4.1';
 const SHELL = `${VERSION}-shell`;
 const RUNTIME = `${VERSION}-runtime`;
 const SHARE = 'qq-share-inbox';

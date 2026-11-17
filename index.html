@@ -22,7 +22,8 @@
 html,body{margin:0;background:var(--paper);color:var(--ink)}
 body{
   font-family:"Huninn","Hiragino Maru Gothic ProN","PingFang TC","Noto Sans TC","Microsoft JhengHei",sans-serif;
-  padding:env(safe-area-inset-top) env(safe-area-inset-right) calc(env(safe-area-inset-bottom) + 100px) env(safe-area-inset-left);
+  /* iPhone 頂部的霧化狀態列會蓋住一點內容，多留一些空間 */
+  padding:calc(env(safe-area-inset-top) + 22px) env(safe-area-inset-right) calc(env(safe-area-inset-bottom) + 100px) env(safe-area-inset-left);
   min-height:100vh;line-height:1.5;font-size:16px;
 }
 a{color:inherit}
@@ -163,7 +164,7 @@ button,input,select,textarea{font:inherit;color:inherit}
 
 /* 全螢幕原圖 */
 .viewer{position:fixed;inset:0;z-index:50;background:#fff;display:flex;flex-direction:column}
-.viewer .vbar{display:flex;align-items:center;gap:8px;padding:calc(10px + env(safe-area-inset-top)) 12px 10px;border-bottom:var(--bw) solid var(--ink);background:var(--paper)}
+.viewer .vbar{display:flex;align-items:center;gap:8px;padding:calc(22px + env(safe-area-inset-top)) 12px 10px;border-bottom:var(--bw) solid var(--ink);background:var(--paper)}
 .viewer .vimg{flex:1;overflow:auto;display:flex;align-items:center;justify-content:center;background:#fff;touch-action:pan-x pan-y pinch-zoom}
 .viewer .vimg img{max-width:100%;max-height:100%;image-rendering:auto}
 .viewer .vimg.zoom{align-items:flex-start;justify-content:flex-start}
@@ -1044,7 +1045,7 @@ document.addEventListener('keydown', e => { if (e.key === 'Escape') closeViewer(
 /* =========================================================
    雲端同步：狀態、帳號、衝突
    ========================================================= */
-const APP_VERSION = '階段四 v4.0';
+const APP_VERSION = '階段四 v4.1';
 function loginCard() {
   if (DB.mode === 'memory' || !window.Sync) return '';
   const st = Sync.status.state;
