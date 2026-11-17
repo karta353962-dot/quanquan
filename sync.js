@@ -281,7 +281,11 @@
       Y.failures++;
       await refreshCounts().catch(() => {});
       const offline = navigator.onLine === false || /fetch|network|load failed|timeout/i.test((e && (e.message || e.name)) || '');
-      setState(offline ? 'offline' : 'error', offline ? '雲端暫時連不上，資料都還在這台裝置' : '同步失敗：' + ((e && (e.message || e.code)) || '未知錯誤'));
+      const msg = (e && (e.message || e.code)) || '未知錯誤';
+      const schema = /does not exist|relation|schema cache|PGRST20[45]|42703|42P01/i.test(msg + ' ' + (e && e.code));
+      setState(offline ? 'offline' : 'error', offline ? '雲端暫時連不上，資料都還在這台裝置'
+        : schema ? '雲端資料表和 App 版本不符（' + msg + '），請執行 supabase/fix-old-tables.sql 與 schema.sql'
+        : '同步失敗：' + msg);
       schedule(Math.min(30000 * 2 ** (Y.failures - 1), 10 * 60 * 1000));
     } finally {
       Y.running = false;
