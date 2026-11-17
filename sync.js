@@ -419,6 +419,7 @@
         return { ok: false, code: 'AI_SERVICE_ERROR', message: `無法連線到 AI 服務（${(e && (e.name + ': ' + e.message)) || e}，${sec()} 秒）`, reason: 'network' };
       } finally { clearTimeout(timer); }
     },
+    client: () => Y.client,
     resolveConflict, clearLocalForNewAccount,
     conflicts: () => all('conflicts'),
     ready: () => !!Y.client,

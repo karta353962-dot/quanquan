@@ -425,6 +425,7 @@ const ICON = {
   camera: `<svg viewBox="0 0 34 34"><rect x="4" y="10" width="26" height="18" rx="5" fill="#F6D27A" stroke="${INK}" stroke-width="3"/><path d="M12 10l2-4h6l2 4" fill="#F6D27A" stroke="${INK}" stroke-width="3" stroke-linejoin="round"/><circle cx="17" cy="19" r="5" fill="#FFFCF6" stroke="${INK}" stroke-width="3"/></svg>`,
   paste: `<svg viewBox="0 0 34 34"><rect x="7" y="7" width="20" height="24" rx="4" fill="#B9DAA5" stroke="${INK}" stroke-width="3"/><rect x="12" y="4" width="10" height="6" rx="2" fill="#FFFCF6" stroke="${INK}" stroke-width="3"/><path d="M12 18h10M12 24h7" stroke="${INK}" stroke-width="3" stroke-linecap="round"/></svg>`,
   ai: `<svg viewBox="0 0 34 34"><path d="M17 4l3 8 8 3-8 3-3 8-3-8-8-3 8-3z" fill="#F2A497" stroke="${INK}" stroke-width="3" stroke-linejoin="round"/><circle cx="27" cy="27" r="3" fill="#F6D27A" stroke="${INK}" stroke-width="2"/></svg>`,
+  gear: `<svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.5l1.6 2.2 2.7-.6.6 2.7 2.4 1.3-1 2.5 1 2.5-2.4 1.3-.6 2.7-2.7-.6L12 19.5l-1.6-2.2-2.7.6-.6-2.7-2.4-1.3 1-2.5-1-2.5 2.4-1.3.6-2.7 2.7.6z" fill="#F6D27A" stroke="#3E3A39" stroke-width="2" stroke-linejoin="round" transform="translate(0 1)"/><circle cx="12" cy="12" r="3.2" fill="#FFFCF6" stroke="#3E3A39" stroke-width="2"/></svg>`,
   cloud: `<svg width="30" height="30" viewBox="0 0 30 30"><path d="M8 23a6 6 0 0 1-.6-12A8 8 0 0 1 23 12a5.5 5.5 0 0 1 0 11z" fill="#FFFCF6" stroke="#3E3A39" stroke-width="2.5" stroke-linejoin="round"/><path d="M15 20v-6m-3 3l3-3 3 3" fill="none" stroke="#3E3A39" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
   bell: `<svg width="26" height="26" viewBox="0 0 26 26"><path d="M7 18c0-6 1-10 6-10s6 4 6 10z" fill="#FFFCF6" stroke="${INK}" stroke-width="2.5" stroke-linejoin="round"/><path d="M5 18h16" stroke="${INK}" stroke-width="2.5" stroke-linecap="round"/><circle cx="13" cy="21" r="2" fill="${INK}"/></svg>`,
 };
@@ -466,9 +467,17 @@ const app = $('#app');
 async function route(keepScroll) {
   closeViewer();
   const h = location.hash.slice(1) || 'home';
-  $('#fab').classList.toggle('hidden', h !== 'home');
+  $('#fab').classList.toggle('hidden', h !== 'home' && h !== 'soon');
   if (keepScroll !== true) window.scrollTo(0, 0);
   if (h === 'account') return renderAccount();
+  if (h === 'settings') return window.Extras ? Extras.renderSettings() : renderHome();
+  if (h === 'soon') { S.tab = 'soon'; return renderHome(); }   // 點推播通知會打開這裡
+  if (h === 'add-shared') {                                      // 從其他 App 分享進來
+    await renderForm(null);
+    history.replaceState(null, '', '#add');
+    if (window.Extras) Extras.consumeShare();
+    return;
+  }
   if (h === 'conflicts') return renderConflicts();
   if (h === 'add') return renderForm(null);
   if (h.startsWith('edit-')) return renderForm(h.slice(5));
@@ -519,13 +528,14 @@ function renderHome(noAnim) {
   app.innerHTML = `
   <header class="top">${mascotSVG()}
     <div class="grow"><h1>券券日記</h1>${syncChip()}</div>
+    <a class="iconbtn" href="#settings" aria-label="設定" style="flex:none;text-decoration:none">${ICON.gear}</a>
   </header>
   <input class="search" id="q" type="search" placeholder="搜尋名稱、平台、訂單編號…" value="${esc(S.q)}" aria-label="搜尋票券">
   <nav class="tabs" role="tablist">
     ${[['active','有效',active.length],['soon','即將到期',soon.length],['used','已使用',used.length]].map(([k,n,c]) =>
       `<button role="tab" data-tab="${k}" class="${S.tab === k ? 'on' : ''}" aria-selected="${S.tab === k}">${n}<span class="n">${c}</span></button>`).join('')}
   </nav>
-  ${confBanner}${loginCard()}${banner}
+  ${confBanner}${loginCard()}${window.Extras ? Extras.installHTML() + Extras.nudgeHTML() : ''}${banner}
   <div id="listArea" class="${noAnim ? '' : 'bounce'}">${body}</div>
   <div class="foot">
     <b>資料保存提醒</b><br>
@@ -652,7 +662,7 @@ async function renderForm(editId) {
         <label class="field"><span>自訂提前天數</span><input name="rem_custom" inputmode="numeric" placeholder="例如：30, 60" value="${esc(custom.join(', '))}"></label>
         <label class="field"><span>提醒時間</span><select name="remind_time">${Array.from({ length: 17 }, (_, i) => { const h = String(i + 6).padStart(2, '0') + ':00'; return `<option ${h === (p.remind_time || '09:00') ? 'selected' : ''}>${h}</option>`; }).join('')}</select></label>
       </div>
-      <p class="hint">時間以整點為單位（台北時間）。背景推播會在階段四啟用，目前先在首頁顯示到期提醒。</p>
+      <p class="hint">時間以整點為單位（台北時間），推播約在整點後 5 分鐘內送達。到「設定」開啟推播；也可以加入行事曆當備援。</p>
     </section>
 
     <section class="card panel">
@@ -963,7 +973,8 @@ async function renderDetail(id) {
   <div class="actions">
     <button class="btn ${used ? 'plain' : 'take'}" id="toggleUsed">${used ? '恢復成未使用' : '標記已使用'}</button>
     <button class="btn mizu" id="dup">再加一張同商品</button>
-    <button class="btn plain" id="del" style="grid-column:1/-1">刪除票券</button>
+    <button class="btn plain" id="ics">加入行事曆</button>
+    <button class="btn plain" id="del">刪除票券</button>
   </div>`;
 
   $('#back').onclick = () => go('home');
@@ -972,6 +983,7 @@ async function renderDetail(id) {
   const cr = $('#cpRc'); if (cr) cr.onclick = () => copyText(t.redeem_code, '兌換碼');
   const sr = $('#showRc'); if (sr) sr.onclick = () => { const s = $('#rc'); const shown = s.dataset.shown === '1'; s.textContent = shown ? mask(t.redeem_code) : t.redeem_code; s.dataset.shown = shown ? '0' : '1'; sr.textContent = shown ? '顯示' : '隱藏'; };
   $('#toggleUsed').onclick = () => setUsed(t, !used);
+  $('#ics').onclick = () => window.Extras ? Extras.exportICS([t], `${t.title.replace(/[\\/:*?"<>|]/g, '')}-到期提醒.ics`) : toast('請稍候再試');
   $('#dup').onclick = () => {
     const { id: _, batch_id, batch_index, batch_total, ...rest } = t;
     S.prefill = { ...rest, batch_total: 1 };
@@ -1032,7 +1044,7 @@ document.addEventListener('keydown', e => { if (e.key === 'Escape') closeViewer(
 /* =========================================================
    雲端同步：狀態、帳號、衝突
    ========================================================= */
-const APP_VERSION = '階段三 v3.3';
+const APP_VERSION = '階段四 v4.0';
 function loginCard() {
   if (DB.mode === 'memory' || !window.Sync) return '';
   const st = Sync.status.state;
@@ -1162,6 +1174,7 @@ function renderAccount() {
     await Sync.signOut(); route();
   };
   const bc = $('#btnClear'); if (bc) bc.onclick = async () => {
+    if (window.Extras && await ask('清除前建議先備份這台裝置上的票券（ZIP），之後還可以匯入。\n要先備份嗎？', '先備份')) { await Extras.exportBackup(); return; }
     if (!(await ask('會清除這台裝置上「另一個帳號」的票券與圖片，然後下載目前帳號的資料。\n確定嗎？', '清除並切換', true))) return;
     await Sync.clearLocalForNewAccount(); await load(); route();
   };
@@ -1246,5 +1259,6 @@ window.appReady = (async function start() {
 </script>
 <script src="sync.js"></script>
 <script src="recognize.js"></script>
+<script src="extras.js"></script>
 </body>
 </html>
