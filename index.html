@@ -413,6 +413,7 @@ const ICON = {
   camera: `<svg viewBox="0 0 34 34"><rect x="4" y="10" width="26" height="18" rx="5" fill="#F6D27A" stroke="${INK}" stroke-width="3"/><path d="M12 10l2-4h6l2 4" fill="#F6D27A" stroke="${INK}" stroke-width="3" stroke-linejoin="round"/><circle cx="17" cy="19" r="5" fill="#FFFCF6" stroke="${INK}" stroke-width="3"/></svg>`,
   paste: `<svg viewBox="0 0 34 34"><rect x="7" y="7" width="20" height="24" rx="4" fill="#B9DAA5" stroke="${INK}" stroke-width="3"/><rect x="12" y="4" width="10" height="6" rx="2" fill="#FFFCF6" stroke="${INK}" stroke-width="3"/><path d="M12 18h10M12 24h7" stroke="${INK}" stroke-width="3" stroke-linecap="round"/></svg>`,
   ai: `<svg viewBox="0 0 34 34"><path d="M17 4l3 8 8 3-8 3-3 8-3-8-8-3 8-3z" fill="#F2A497" stroke="${INK}" stroke-width="3" stroke-linejoin="round"/><circle cx="27" cy="27" r="3" fill="#F6D27A" stroke="${INK}" stroke-width="2"/></svg>`,
+  cloud: `<svg width="30" height="30" viewBox="0 0 30 30"><path d="M8 23a6 6 0 0 1-.6-12A8 8 0 0 1 23 12a5.5 5.5 0 0 1 0 11z" fill="#FFFCF6" stroke="#3E3A39" stroke-width="2.5" stroke-linejoin="round"/><path d="M15 20v-6m-3 3l3-3 3 3" fill="none" stroke="#3E3A39" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
   bell: `<svg width="26" height="26" viewBox="0 0 26 26"><path d="M7 18c0-6 1-10 6-10s6 4 6 10z" fill="#FFFCF6" stroke="${INK}" stroke-width="2.5" stroke-linejoin="round"/><path d="M5 18h16" stroke="${INK}" stroke-width="2.5" stroke-linecap="round"/><circle cx="13" cy="21" r="2" fill="${INK}"/></svg>`,
 };
 
@@ -512,7 +513,7 @@ function renderHome(noAnim) {
     ${[['active','有效',active.length],['soon','即將到期',soon.length],['used','已使用',used.length]].map(([k,n,c]) =>
       `<button role="tab" data-tab="${k}" class="${S.tab === k ? 'on' : ''}" aria-selected="${S.tab === k}">${n}<span class="n">${c}</span></button>`).join('')}
   </nav>
-  ${confBanner}${banner}
+  ${confBanner}${loginCard()}${banner}
   <div id="listArea" class="${noAnim ? '' : 'bounce'}">${body}</div>
   <div class="foot">
     <b>資料保存提醒</b><br>
@@ -522,6 +523,7 @@ function renderHome(noAnim) {
         ? '票券會先存在這台裝置，再自動同步到你的雲端帳號。沒有網路時一樣可以查看與新增，連線後會自動補上傳。'
         : '目前資料只存在這台裝置的瀏覽器。<a href="#account">登入雲端同步</a>後，換手機也能找回票券。iPhone 請「加入主畫面」，降低資料被系統清除的機率。')}
     <div id="usage" class="muted"></div>
+    <div class="muted">版本：${APP_VERSION}</div>
   </div>`;
 
   $('#q').addEventListener('input', e => { S.q = e.target.value; const pos = e.target.selectionStart; renderHome(true); const n = $('#q'); n.focus(); try { n.setSelectionRange(pos, pos); } catch {} });
@@ -1012,6 +1014,14 @@ document.addEventListener('keydown', e => { if (e.key === 'Escape') closeViewer(
 /* =========================================================
    雲端同步：狀態、帳號、衝突
    ========================================================= */
+const APP_VERSION = '階段二 v2.2';
+function loginCard() {
+  if (DB.mode === 'memory' || !window.Sync) return '';
+  const st = Sync.status.state;
+  if (st === 'signedout') return `<a class="banner" href="#account" style="background:var(--mizu);text-decoration:none">${ICON.cloud}<span class="grow">登入雲端同步<br><small style="font-weight:400">換手機、用電腦也能看到票券</small></span><span class="btn small plain">登入</span></a>`;
+  if (st === 'off') return `<a class="banner" href="#account" style="background:var(--paper);text-decoration:none">${ICON.cloud}<span class="grow">雲端尚未設定<br><small style="font-weight:400">需要在 config.js 填入 Supabase 資料</small></span></a>`;
+  return '';
+}
 function syncChip() {
   if (DB.mode === 'memory') return '<span class="status warn"><i></i>暫存模式・關閉後資料會消失</span>';
   const st = window.Sync ? Sync.status : { state: 'off' };
@@ -1113,6 +1123,8 @@ function renderAccount() {
 }
 function authErr(err) {
   const m = (err && (err.message || err.code)) || '';
+  const status = err && (err.status || err.statusCode);
+  if (/api key|apikey|no api key/i.test(m) || (status === 401 && !/token|otp/i.test(m))) return '雲端金鑰錯誤：請檢查 config.js 的 supabaseKey 是否完整複製';
   if (/rate|too many|seconds/i.test(m)) return '寄送太頻繁，請稍等一下再試';
   if (/expired|invalid|token/i.test(m)) return '驗證碼錯誤或已過期，請重新寄送';
   if (/fetch|network/i.test(m)) return '無法連線到雲端，請檢查網路';
@@ -1169,7 +1181,12 @@ window.appReady = (async function start() {
   try { await load(); } catch (e) { console.error(e); DB.mode = 'memory'; }
   route();
   // 同步狀態改變時，只更新狀態標籤，不重畫整頁
+  let lastState = null;
   const hookSync = () => window.Sync && Sync.onChange(() => {
+    const st = Sync.status.state, changed = st !== lastState; lastState = st;
+    const h0 = location.hash.slice(1) || 'home';
+    // 狀態類別改變（例如變成未登入）時重畫首頁，才會出現登入卡片
+    if (changed && h0 === 'home' && !S.draft && !$('#viewer') && document.activeElement?.id !== 'q' && ['signedout', 'off', 'ok', 'paused'].includes(st)) { renderHome(true); return; }
     const chip = $('#syncChip'); if (chip) chip.outerHTML = syncChip();
     const box = $('#acctStatus'); if (box) box.innerHTML = acctStatusHTML();
     const h = location.hash.slice(1) || 'home';
