@@ -143,6 +143,18 @@ button,input,select,textarea{font:inherit;color:inherit}
 .cfield .opt{display:flex;gap:8px;align-items:flex-start;padding:8px;border-radius:12px;cursor:pointer}
 .cfield .opt input{margin-top:5px;width:18px;height:18px;accent-color:#3E3A39}
 .cfield .opt:has(input:checked){background:var(--yellow)}
+.sheet{max-height:92vh;overflow:auto}
+.maskwrap{display:flex;justify-content:center}
+.maskwrap canvas{max-width:100%;max-height:55vh;touch-action:none;border:var(--bw) solid var(--ink);border-radius:12px;background:#fff}
+.busy{text-align:center;padding:6px 0}
+.busy-mascot{width:110px;height:110px}
+.busy p{font-weight:700;margin:6px 0 12px}
+.bar{height:16px;border:var(--bw) solid var(--ink);border-radius:999px;overflow:hidden;background:var(--white)}
+.bar i{display:block;height:100%;width:0;background:var(--coral);transition:width .2s}
+.recog{padding:12px 14px;margin:0 0 14px;border:var(--bw) solid var(--ink);border-radius:18px;background:#FFF3C4;box-shadow:0 4px 0 var(--ink)}
+.recog .hint{opacity:.85}
+.warnline{font-weight:700;opacity:1!important}
+.field .ai-filled,.ai-filled{background:#FFF3C4!important}
 .kv{display:grid;grid-template-columns:96px 1fr;gap:8px 10px;font-size:15px}
 .kv dt{font-weight:700;opacity:.8}
 .kv dd{margin:0;word-break:break-all}
@@ -258,7 +270,7 @@ function byExpiry(a, b) {
 }
 
 /* ---------- 本機資料層 ---------- */
-const STORES = { tickets: 'id', ticket_images: 'id', blobs: 'hash', sync_queue: 'id', meta: 'key', sync_base: 'key', conflicts: 'key' };
+const STORES = { tickets: 'id', ticket_images: 'id', blobs: 'hash', sync_queue: 'id', meta: 'key', sync_base: 'key', conflicts: 'key', ai_cache: 'key' };
 const DB = { mode: 'idb', db: null, mem: {} };
 for (const k of Object.keys(STORES)) DB.mem[k] = new Map();
 
@@ -266,7 +278,7 @@ async function openDB() {
   try {
     if (!window.indexedDB) throw new Error('no idb');
     DB.db = await new Promise((res, rej) => {
-      const r = indexedDB.open('quanquan', 2);
+      const r = indexedDB.open('quanquan', 3);
       const timer = setTimeout(() => rej(new Error('timeout')), 5000);
       r.onupgradeneeded = () => {
         const d = r.result;
@@ -587,12 +599,13 @@ async function renderForm(editId) {
       <label class="way">${ICON.upload}上傳截圖<input id="fUpload" type="file" accept="image/*" multiple aria-label="上傳截圖"></label>
       <label class="way">${ICON.camera}拍照新增<input id="fCamera" type="file" accept="image/*" capture="environment" aria-label="拍照新增"></label>
       <button type="button" class="way" id="btnPaste">${ICON.paste}貼上圖片</button>
-      <div class="way off" aria-disabled="true">${ICON.ai}AI 自動辨識<span class="chip yellow soon">階段三</span></div>
+      <button type="button" class="way" id="btnRecog">${ICON.ai}辨識票券資訊</button>
     </div>
     <div id="pasteBox" class="pastebox hidden" contenteditable="true" aria-label="貼上區">長按這裡 →「貼上」<br><span class="muted">或改用上傳截圖</span></div>
     <div class="imgs" id="imgList"></div>
     <p class="hint">原圖不壓縮、不裁切，保留 QR Code 掃描品質。☆ 指定主要展示圖片。</p>
   </section>
+  <section id="recogBox" class="recog hidden" aria-live="polite"></section>
 
   <form id="form" autocomplete="off" novalidate>
     ${t ? '' : `<section class="card panel">
@@ -654,6 +667,10 @@ async function renderForm(editId) {
   $('#fUpload').onchange = e => { addFiles([...e.target.files]); e.target.value = ''; };
   $('#fCamera').onchange = e => { addFiles([...e.target.files]); e.target.value = ''; };
   $('#btnPaste').onclick = pasteFromClipboard;
+  $('#btnRecog').onclick = () => window.Recog ? Recog.start() : toast('辨識功能載入中，請稍候');
+  S.draft.userSet = new Set();
+  $('#form').addEventListener('change', e => { if (e.isTrusted && e.target.name) S.draft.userSet.add(e.target.name); });
+  $('#form').addEventListener('input', e => e.target.classList && e.target.classList.remove('ai-filled'));
   app.querySelectorAll('input[name="mode"]').forEach(r => r.onchange = () => {
     S.draft.mode = r.value;
     if (r.value === 'multi') S.draft.images.forEach(im => { if (im.kind === 'info' && !im.touched) im.kind = 'qr'; });
@@ -862,6 +879,7 @@ async function saveDraft(form) {
     }
     await load();
     await gcBlobs(removedHashes);
+    if (d.recog && window.Recog) await Recog.confirm(d.recog).catch(() => {});
     S.draft = null;
     toast(msg);
     history.replaceState(null, '', '#' + goTo);
@@ -1014,7 +1032,7 @@ document.addEventListener('keydown', e => { if (e.key === 'Escape') closeViewer(
 /* =========================================================
    雲端同步：狀態、帳號、衝突
    ========================================================= */
-const APP_VERSION = '階段二 v2.4';
+const APP_VERSION = '階段三 v3.0';
 function loginCard() {
   if (DB.mode === 'memory' || !window.Sync) return '';
   const st = Sync.status.state;
@@ -1201,5 +1219,6 @@ window.appReady = (async function start() {
 })();
 </script>
 <script src="sync.js"></script>
+<script src="recognize.js"></script>
 </body>
 </html>

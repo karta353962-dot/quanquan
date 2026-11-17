@@ -390,6 +390,25 @@
       if (error) throw error;
     },
     async signOut() { await Y.client.auth.signOut({ scope: 'local' }); await setUser(null); },
+    // 呼叫 Edge Function；所有錯誤都整理成 { ok:false, code, message }
+    async invoke(name, body, ms = 40000) {
+      if (!Y.client || !Y.user) return { ok: false, code: 'AI_SERVICE_ERROR', message: '請先登入雲端同步' };
+      const timeout = new Promise(r => setTimeout(() => r({ ok: false, code: 'AI_TIMEOUT', message: 'AI 回應逾時' }), ms));
+      const call = (async () => {
+        try {
+          const { data, error } = await Y.client.functions.invoke(name, { body });
+          if (!error) return data;
+          let payload = null;
+          try { payload = error.context && await error.context.json(); } catch {}
+          if (payload && payload.code) return payload;
+          const status = error.context && error.context.status;
+          if (status === 404) return { ok: false, code: 'AI_SERVICE_ERROR', message: 'AI 辨識功能還沒部署（Edge Function：recognize）', reason: 'not_deployed' };
+          if (status === 401) return { ok: false, code: 'AI_SERVICE_ERROR', message: '登入已過期，請重新登入', reason: 'unauthorized' };
+          return { ok: false, code: 'AI_SERVICE_ERROR', message: navigator.onLine === false ? '目前離線' : 'AI 服務連線失敗' };
+        } catch (e) { return { ok: false, code: 'AI_SERVICE_ERROR', message: 'AI 服務連線失敗' }; }
+      })();
+      return Promise.race([call, timeout]);
+    },
     resolveConflict, clearLocalForNewAccount,
     conflicts: () => all('conflicts'),
     ready: () => !!Y.client,
